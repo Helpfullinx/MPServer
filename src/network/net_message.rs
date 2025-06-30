@@ -52,7 +52,6 @@ pub fn build_message(
     for n in messages {
         match n.1.0 {
             Sequence { sequence_number } => {
-                println!("{:?}", sequence_number);
                 seq_num = sequence_number;
                 commands.entity(n.0).despawn();
             }

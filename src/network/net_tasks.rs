@@ -22,7 +22,10 @@ pub fn handle_udp_message(
     udp_packets: Query<&UdpPacket>,
     mut players: Query<(&Id, &mut Position)>,
 ) {
-    println!("{:?}", udp_packets.iter().len());
+    if udp_packets.iter().len() >= 2 {
+        println!("{}", udp_packets.iter().len());
+    }
+
     for p in udp_packets.iter() {
         let decoded: ((SequenceNumber, Vec<NetworkMessageType>), usize) =
             bincode::serde::decode_from_slice(&p.bytes, config::standard()).unwrap();

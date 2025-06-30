@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::Communication;
 use crate::components::common::{Id, Position};
 use crate::network::net_manage::{TcpPacket, UdpPacket};
@@ -13,15 +15,17 @@ pub fn udp_net_receive(
     mut comm: ResMut<Communication>,
     mut commands: Commands,
 ) {
+    let mut udp_packet = None;
     while !comm.udp_rx.is_empty() {
         match comm.udp_rx.try_recv() {
             Ok((bytes, addr)) => {
-                commands.spawn(UdpPacket { bytes: bytes, addr });
+                udp_packet = Some(UdpPacket { bytes: bytes, addr });
             }
             Err(TryRecvError::Empty) => break,
             Err(TryRecvError::Disconnected) => break,
         }
     }
+    if let Some(p) = udp_packet { commands.spawn(p); }
 }
 
 pub fn udp_net_send(
