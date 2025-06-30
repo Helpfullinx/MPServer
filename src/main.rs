@@ -1,25 +1,26 @@
-mod network;
 mod components;
-mod util;
 mod math;
+mod network;
+mod util;
 
-use tokio::net::TcpStream;
-use tokio::{io, sync::mpsc};
+use crate::components::common::{Id, Position};
+use crate::components::player::PlayerBundle;
+use crate::network::net_manage::{Communication, Connections, start_tcp_task, start_udp_task};
+use crate::network::net_system::{tcp_net_receive, tcp_net_send, udp_net_receive, udp_net_send};
+use bevy_ecs::prelude::*;
+use bincode::{Decode, Encode};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use bevy_ecs::prelude::*;
-use bincode::{Decode, Encode};
-use crate::components::common::{Id, Position};
-use crate::components::player::PlayerBundle;
-use crate::network::net_manage::{start_udp_task, start_tcp_task, Communication, Connections};
-use crate::network::net_system::{tcp_net_receive, tcp_net_send, udp_net_receive, udp_net_send};
+use tokio::net::TcpStream;
+use tokio::{io, sync::mpsc};
+use crate::network::net_tasks::handle_udp_message;
 
 #[derive(Resource)]
 struct FixedTime {
     timestep: Duration,
     accumulator: Duration,
-    last_update: Instant
+    last_update: Instant,
 }
 
 #[tokio::main]
@@ -29,16 +30,21 @@ async fn main() -> io::Result<()> {
     let (tcp_send_tx, tcp_send_rx) = mpsc::channel::<(Vec<u8>, Arc<TcpStream>)>(1_000);
     let (tcp_receive_tx, tcp_receive_rx) = mpsc::channel::<(Vec<u8>, Arc<TcpStream>)>(1_000);
 
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0,0,0,0)), 4444);
-    
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 4444);
+
     start_tcp_task(addr, tcp_send_rx, tcp_receive_tx).await?;
     start_udp_task(addr, udp_send_rx, udp_receive_tx, 8).await?;
 
     let mut world = World::new();
-    
-    world.insert_resource(Communication::new(udp_send_tx, udp_receive_rx, tcp_send_tx, tcp_receive_rx));
+
+    world.insert_resource(Communication::new(
+        udp_send_tx,
+        udp_receive_rx,
+        tcp_send_tx,
+        tcp_receive_rx,
+    ));
     world.insert_resource(Connections::new());
-    world.insert_resource(FixedTime{
+    world.insert_resource(FixedTime {
         timestep: Duration::from_secs_f64(1.0 / 60.0),
         accumulator: Duration::ZERO,
         last_update: Instant::now(),
@@ -58,20 +64,20 @@ async fn main() -> io::Result<()> {
     //     Id(3),
     //     Position::new(0.0, 0.0)
     // )).id();
-    
+
     let mut schedule = Schedule::default();
     schedule.add_systems((
         udp_net_receive,
+        handle_udp_message.after(udp_net_receive),
         tcp_net_receive.after(udp_net_receive),
         tcp_net_send,
         udp_net_send.after(tcp_net_receive),
-        
     ));
-    
+
     loop {
         fixed_timestep_runner(&mut world, &mut schedule);
     }
-    
+
     Ok(())
 }
 

@@ -1,15 +1,12 @@
-use std::collections::HashSet;
+use bevy_ecs::component::Component;
+use bevy_ecs::prelude::Resource;
 use std::io::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::Resource;
-use bincode::config;
 use tokio::io;
 use tokio::io::Interest;
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::network::net_message::NetworkMessageType;
 
 #[derive(Resource)]
 pub struct Communication {
@@ -54,8 +51,8 @@ impl Communication {
 
 impl Connections {
     pub fn new() -> Self {
-        Self{
-            ip_addrs: Vec::new()
+        Self {
+            ip_addrs: Vec::new(),
         }
     }
 }
@@ -76,10 +73,8 @@ pub async fn start_tcp_task(
             loop {
                 // Accept first connection in queue
                 match listener.accept().await {
-
                     // If valid connection, read data
                     Ok((stream, addr)) => {
-
                         println!("New connection from {}", addr);
 
                         // TODO: Apparently this can create false positives and what it reads because of that may be empty, therefore we have to check that
@@ -88,20 +83,23 @@ pub async fn start_tcp_task(
 
                         // If stream is in a readable state, we read in the lobby id
                         if ready.is_readable() {
-
                             // Buffer for holding data received through stream
                             let mut buf = vec![0u8; 200];
 
                             // Read in the lobby id
                             match stream.try_read(&mut buf) {
-                                Ok(_) => {},
-                                Err(e) => {println!("{:?}", e)},
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("{:?}", e)
+                                }
                             }
 
                             inbound.send((buf, Arc::new(stream))).await.unwrap();
                         }
                     }
-                    Err(e) => {eprintln!("{}", e);}
+                    Err(e) => {
+                        eprintln!("{}", e);
+                    }
                 }
             }
         });
@@ -111,10 +109,12 @@ pub async fn start_tcp_task(
                 let ready = stream.ready(Interest::WRITABLE).await.unwrap();
 
                 // If stream is writable, send the players uuid
-                if ready.is_writable(){
+                if ready.is_writable() {
                     match stream.try_write(&*bytes) {
                         Ok(_) => {}
-                        Err(e) => { println!("{:?}", e) },
+                        Err(e) => {
+                            println!("{:?}", e)
+                        }
                     };
                 }
             }
@@ -128,10 +128,10 @@ pub async fn start_udp_task(
     bind_addr: SocketAddr,
     mut outbound: Receiver<(Vec<u8>, SocketAddr)>,
     inbound: Sender<(Vec<u8>, SocketAddr)>,
-    pool_size: usize
+    pool_size: usize,
 ) -> io::Result<()> {
     // Create and share the socket
-    let socket = Arc::new(UdpSocket::bind(bind_addr).await?);// separate handles are handy
+    let socket = Arc::new(UdpSocket::bind(bind_addr).await?); // separate handles are handy
 
     // Receive Loop - Creates number of tasks based on pool size specified
     for i in 0..pool_size {

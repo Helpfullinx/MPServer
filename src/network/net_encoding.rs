@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use bincode::config;
-use bincode::config::Configuration;
-use serde::{Deserialize, Serialize};
 use crate::components::common::Position;
 use crate::components::entity::Entity;
 use crate::components::player::PlayerBundle;
 use crate::network::net_message::NetworkMessageType;
+use bincode::config;
+use bincode::config::Configuration;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[test]
 fn test_encode_decode() {
@@ -39,5 +39,7 @@ fn encode() -> Vec<u8> {
 }
 
 fn decode(buf: Vec<u8>) -> Vec<NetworkMessageType> {
-    bincode::serde::decode_from_slice(&buf, config::standard()).unwrap().0
+    bincode::serde::decode_from_slice(&buf, config::standard())
+        .unwrap()
+        .0
 }
