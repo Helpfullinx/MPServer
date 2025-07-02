@@ -3,15 +3,13 @@ mod math;
 mod network;
 mod util;
 
-use crate::components::common::{Id, Position};
-use crate::components::player::PlayerBundle;
 use crate::network::net_manage::{Communication, start_tcp_task, start_udp_task};
 use crate::network::net_system::{tcp_net_receive, tcp_net_send, udp_net_receive, udp_net_send};
 use bevy_ecs::prelude::*;
 use bincode::{Decode, Encode};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::{io, sync::mpsc};
 use crate::network::net_tasks::{build_connection_messages, handle_udp_message};
@@ -48,21 +46,6 @@ async fn main() -> io::Result<()> {
         accumulator: Duration::ZERO,
         last_update: Instant::now(),
     });
-
-    // let position2 = world.spawn((
-    //     Id(1),
-    //     Position::new(0.0, 0.0)
-    // )).id();
-    //
-    // let position2 = world.spawn((
-    //     Id(2),
-    //     Position::new(0.0, 0.0)
-    // )).id();
-    //
-    // let position2 = world.spawn((
-    //     Id(3),
-    //     Position::new(0.0, 0.0)
-    // )).id();
 
     let mut schedule = Schedule::default();
     schedule.add_systems((

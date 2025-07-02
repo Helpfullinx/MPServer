@@ -115,7 +115,5 @@ pub fn tcp_net_send(
 }
 
 fn same_stream(a: &TcpStream, b: &TcpStream) -> bool {
-    let res = a.peer_addr().ok() == b.peer_addr().ok() && a.local_addr().ok() == b.local_addr().ok();
-    println!("{:?}", res);
-    res
+    a.peer_addr().ok() == b.peer_addr().ok() && a.local_addr().ok() == b.local_addr().ok()
 }

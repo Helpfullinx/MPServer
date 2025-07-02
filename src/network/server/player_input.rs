@@ -1,16 +1,13 @@
 use crate::components::common::{Id, Position};
-use crate::components::player::PlayerBundle;
-use crate::network::net_message::{BitMask, NetworkMessage, NetworkMessageType, UdpMessage};
-use bevy_ecs::prelude::{Commands, Query};
-use std::collections::HashMap;
-use crate::network::net_manage::Connection;
+use crate::network::net_message::BitMask;
+use bevy_ecs::prelude::Query;
 
 pub fn handle_input(
     keymask: BitMask,
     playerid: u128,
     players: &mut Query<(&Id, &mut Position)>,
 ) {
-    let move_speed = 3.0;
+    let move_speed = 0.1;
     
     for (id, mut pos) in players.iter_mut() {
         if id.0 == playerid {

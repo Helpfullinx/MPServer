@@ -44,24 +44,3 @@ pub enum NetworkMessageType {
         player_uid: u128,
     },
 }
-
-// pub fn build_message(
-//     mut connection: TcpConnection,
-//     commands: &mut Commands,
-// ) -> (SequenceNumber, Vec<NetworkMessage>) {
-//     let mut net_message = Vec::new();
-//     let mut seq_num = 0;
-//     for (i, m) in connection.output_message.iter().enumerate() {
-//         match m.0 {
-//             Sequence { sequence_number } => {
-//                 seq_num = sequence_number;
-//                 connection.output_message.remove(i);
-//             }
-//             _ => {}
-//         }
-//         net_message.push();
-//         commands.entity(n.0).despawn();
-//     }
-// 
-//     (seq_num, net_message)
-// }
