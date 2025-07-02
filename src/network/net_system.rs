@@ -1,47 +1,53 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use crate::Communication;
-use crate::components::common::{Id, Position};
-use crate::network::net_manage::{TcpPacket, UdpPacket};
-use crate::network::net_message::{NetworkMessage, TcpMessage, UdpMessage, build_message};
+use crate::network::net_manage::{Connection, TcpConnection, Packet};
 use bevy_ecs::change_detection::ResMut;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Commands, Query, With};
+use bevy_ecs::prelude::{Commands, Query};
 use bincode::config;
+use tokio::net::TcpStream;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use crate::network::server::server_join::handle_join;
 
 pub fn udp_net_receive(
     mut comm: ResMut<Communication>,
+    mut connections: Query<&mut Connection>,
     mut commands: Commands,
 ) {
-    let mut udp_packet = None;
     while !comm.udp_rx.is_empty() {
         match comm.udp_rx.try_recv() {
             Ok((bytes, addr)) => {
-                udp_packet = Some(UdpPacket { bytes: bytes, addr });
+                let c = connections.iter_mut().find(|x| x.ip_addrs == addr);
+                
+                match c {
+                    Some(mut c) => {
+                        c.input_packet_buffer.push_back(Packet{bytes: bytes.clone()});
+                    },
+                    None => {
+                        let mut conn = Connection::new(addr);
+                        conn.input_packet_buffer.push_back(Packet{bytes: bytes.clone()});
+                        commands.spawn(conn);
+                    }
+                }
             }
             Err(TryRecvError::Empty) => break,
             Err(TryRecvError::Disconnected) => break,
         }
     }
-    if let Some(p) = udp_packet { commands.spawn(p); }
 }
 
 pub fn udp_net_send(
     comm: ResMut<Communication>,
-    mut packets: Query<(Entity, &UdpPacket)>,
-    messages: Query<(Entity, &NetworkMessage), With<UdpMessage>>,
-    mut commands: Commands,
+    mut connections: Query<&mut Connection>,
 ) {
-    // Takes in all NetworkMessage that have been added to ECS and builds Network
-    let net_message = build_message(messages.into_iter().collect(), &mut commands);
-    let message = bincode::serde::encode_to_vec(net_message, config::standard()).unwrap();
-
-    for (e, packet) in packets.iter_mut() {
-        match comm.udp_tx.try_send((message.clone(), packet.addr)) {
+    for mut c in connections.iter_mut() {
+        if c.output_message.is_empty() {
+            continue;
+        }
+        
+        let message = bincode::serde::encode_to_vec(&c.output_message, config::standard()).unwrap();
+        
+        match comm.udp_tx.try_send((message.clone(), c.ip_addrs)) {
             Ok(()) => {
-                commands.entity(e).remove::<UdpPacket>();
+                c.output_message.clear();
             }
             Err(TrySendError::Full(_)) => break,
             Err(TrySendError::Closed(_)) => break,
@@ -49,7 +55,11 @@ pub fn udp_net_send(
     }
 }
 
-pub fn tcp_net_receive(mut commands: Commands, mut comm: ResMut<Communication>) {
+pub fn tcp_net_receive(
+    mut commands: Commands,
+    mut connections: Query<&mut TcpConnection>,
+    mut comm: ResMut<Communication>
+) {
     // TODO: There should be a global lobby hashmap that will hold a bunch of these hashsets, and then figure out a way to work with that
     // Hashset of all player uuid's in lobby
     // let mut players: HashSet<Uuid> = HashSet::new();
@@ -57,13 +67,20 @@ pub fn tcp_net_receive(mut commands: Commands, mut comm: ResMut<Communication>) 
     while !comm.tcp_rx.is_empty() {
         match comm.tcp_rx.try_recv() {
             Ok((bytes, stream)) => {
-                // Decodes lobby_id and returns back a player_id
-                handle_join(bytes, &mut commands, &stream);
-
-                commands.spawn(TcpPacket {
-                    bytes: vec![],
-                    tcp_stream: stream,
-                });
+                let c = connections.iter_mut().find(|x| { same_stream(&*x.stream, &*stream) });
+                
+                match c {
+                    Some(mut c) => {
+                        c.input_packet_buffer.push_back(Packet{ bytes: bytes.clone() });
+                        handle_join(&mut c, &bytes, &mut commands);
+                    }
+                    None => {
+                        let mut conn = TcpConnection::new(stream);
+                        conn.input_packet_buffer.push_back(Packet{ bytes: bytes.clone() });
+                        handle_join(&mut conn, &bytes, &mut commands);
+                        commands.spawn(conn);
+                    }
+                }
             }
             Err(TryRecvError::Empty) => break,
             Err(TryRecvError::Disconnected) => break,
@@ -73,23 +90,32 @@ pub fn tcp_net_receive(mut commands: Commands, mut comm: ResMut<Communication>) 
 
 pub fn tcp_net_send(
     comm: ResMut<Communication>,
-    mut packets: Query<(Entity, &TcpPacket)>,
-    messages: Query<(Entity, &NetworkMessage), With<TcpMessage>>,
-    mut commands: Commands,
+    mut connections: Query<&mut TcpConnection>,
 ) {
-    let net_message = build_message(messages.into_iter().collect(), &mut commands);
-    let message = bincode::serde::encode_to_vec(net_message, config::standard()).unwrap();
-
-    for (e, packet) in packets.iter_mut() {
-        match comm
+    for mut c in connections.iter_mut() {
+        if c.output_message.is_empty() {
+            continue;
+        }
+        
+        let message = bincode::serde::encode_to_vec(&c.output_message, config::standard()).unwrap();
+        
+        let x = comm
             .tcp_tx
-            .try_send((message.clone(), packet.tcp_stream.clone()))
+            .try_send((message.clone(), c.stream.clone()));
+        
+        match x
         {
             Ok(()) => {
-                commands.entity(e).remove::<TcpPacket>();
+                c.output_message.clear();
             }
             Err(TrySendError::Full(_)) => break,
             Err(TrySendError::Closed(_)) => break,
         }
     }
+}
+
+fn same_stream(a: &TcpStream, b: &TcpStream) -> bool {
+    let res = a.peer_addr().ok() == b.peer_addr().ok() && a.local_addr().ok() == b.local_addr().ok();
+    println!("{:?}", res);
+    res
 }

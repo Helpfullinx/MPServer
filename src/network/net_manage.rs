@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
 use std::io::Error;
@@ -7,6 +8,7 @@ use tokio::io;
 use tokio::io::Interest;
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 use tokio::sync::mpsc::{Receiver, Sender};
+use crate::network::net_message::{NetworkMessage, NetworkMessageType};
 
 #[derive(Resource)]
 pub struct Communication {
@@ -16,21 +18,24 @@ pub struct Communication {
     pub tcp_rx: Receiver<(Vec<u8>, Arc<TcpStream>)>,
 }
 
-#[derive(Resource)]
-pub struct Connections {
-    pub ip_addrs: Vec<SocketAddr>,
+#[derive(Component)]
+pub struct Connection {
+    pub ip_addrs: SocketAddr,
+    pub input_packet_buffer: VecDeque<Packet>,
+    pub output_message: Vec<NetworkMessage>,
 }
 
-#[derive(Component)]
-pub struct UdpPacket {
-    pub bytes: Vec<u8>,
-    pub addr: SocketAddr,
+#[derive(Component, Debug)]
+pub struct TcpConnection {
+    pub stream: Arc<TcpStream>,
+    pub input_packet_buffer: VecDeque<Packet>,
+    pub output_message: Vec<NetworkMessage>,
+    pub lobby_id: u128,
 }
 
-#[derive(Component)]
-pub struct TcpPacket {
+#[derive(Component, Debug)]
+pub struct Packet {
     pub bytes: Vec<u8>,
-    pub tcp_stream: Arc<TcpStream>,
 }
 
 impl Communication {
@@ -49,10 +54,23 @@ impl Communication {
     }
 }
 
-impl Connections {
-    pub fn new() -> Self {
+impl Connection {
+    pub fn new(ip_addrs: SocketAddr) -> Self {
         Self {
-            ip_addrs: Vec::new(),
+            ip_addrs,
+            input_packet_buffer: VecDeque::new(),
+            output_message: Vec::new()
+        }
+    }
+}
+
+impl TcpConnection {
+    pub fn new(stream: Arc<TcpStream>) -> Self {
+        Self {
+            stream,
+            lobby_id: 0,
+            input_packet_buffer: Default::default(),
+            output_message: vec![],
         }
     }
 }
@@ -90,7 +108,7 @@ pub async fn start_tcp_task(
                             match stream.try_read(&mut buf) {
                                 Ok(_) => {}
                                 Err(e) => {
-                                    println!("{:?}", e)
+                                    println!("Couldn't read: {:?}", e)
                                 }
                             }
 
@@ -113,7 +131,7 @@ pub async fn start_tcp_task(
                     match stream.try_write(&*bytes) {
                         Ok(_) => {}
                         Err(e) => {
-                            println!("{:?}", e)
+                            println!("Couldn't write: {:?}", e)
                         }
                     };
                 }
@@ -134,7 +152,7 @@ pub async fn start_udp_task(
     let socket = Arc::new(UdpSocket::bind(bind_addr).await?); // separate handles are handy
 
     // Receive Loop - Creates number of tasks based on pool size specified
-    for i in 0..pool_size {
+    for _ in 0..pool_size {
         let recv_sock = socket.clone();
         let inbound_tx = inbound.clone();
 
@@ -146,7 +164,7 @@ pub async fn start_udp_task(
                         let _ = inbound_tx.send((buf[..len].to_vec(), addr)).await;
                     }
                     Err(e) => {
-                        eprintln!("recv error: {e}");
+                        eprintln!("Couldn't read: {e}");
                         break;
                     }
                 }
@@ -159,7 +177,7 @@ pub async fn start_udp_task(
     tokio::spawn(async move {
         while let Some((bytes, addr)) = outbound.recv().await {
             if let Err(e) = send_sock.send_to(&bytes, &addr).await {
-                eprintln!("send error: {e}");
+                eprintln!("Couldn't write: {e}");
             }
         }
     });

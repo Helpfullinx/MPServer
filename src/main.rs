@@ -5,7 +5,7 @@ mod util;
 
 use crate::components::common::{Id, Position};
 use crate::components::player::PlayerBundle;
-use crate::network::net_manage::{Communication, Connections, start_tcp_task, start_udp_task};
+use crate::network::net_manage::{Communication, start_tcp_task, start_udp_task};
 use crate::network::net_system::{tcp_net_receive, tcp_net_send, udp_net_receive, udp_net_send};
 use bevy_ecs::prelude::*;
 use bincode::{Decode, Encode};
@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::net::TcpStream;
 use tokio::{io, sync::mpsc};
-use crate::network::net_tasks::handle_udp_message;
+use crate::network::net_tasks::{build_connection_messages, handle_udp_message};
 
 #[derive(Resource)]
 struct FixedTime {
@@ -43,7 +43,6 @@ async fn main() -> io::Result<()> {
         tcp_send_tx,
         tcp_receive_rx,
     ));
-    world.insert_resource(Connections::new());
     world.insert_resource(FixedTime {
         timestep: Duration::from_secs_f64(1.0 / 60.0),
         accumulator: Duration::ZERO,
@@ -68,10 +67,11 @@ async fn main() -> io::Result<()> {
     let mut schedule = Schedule::default();
     schedule.add_systems((
         udp_net_receive,
+        tcp_net_receive,
         handle_udp_message.after(udp_net_receive),
-        tcp_net_receive.after(udp_net_receive),
-        tcp_net_send,
-        udp_net_send.after(tcp_net_receive),
+        build_connection_messages.after(handle_udp_message),
+        udp_net_send.after(build_connection_messages),
+        tcp_net_send.after(tcp_net_receive),
     ));
 
     loop {
