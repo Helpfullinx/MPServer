@@ -95,33 +95,55 @@ pub async fn start_tcp_task(
     let listener = socket.listen(1024)?;
 
     tokio::spawn(async move {
+        // Task responsible for accepting new TCP connections
+        let inbound_accept = inbound.clone();
         tokio::spawn(async move {
             loop {
-                // Accept first connection in queue
                 match listener.accept().await {
-                    // If valid connection, read data
                     Ok((stream, addr)) => {
                         println!("New connection from {}", addr);
 
-                        // TODO: Apparently this can create false positives and what it reads because of that may be empty, therefore we have to check that
-                        // Get the ready-ness value for the stream
+                        let stream = Arc::new(stream);
+
+                        // Attempt to read lobby id on connection
                         let ready = stream.ready(Interest::READABLE).await.unwrap();
-
-                        // If stream is in a readable state, we read in the lobby id
                         if ready.is_readable() {
-                            // Buffer for holding data received through stream
                             let mut buf = vec![0u8; 200];
-
-                            // Read in the lobby id
                             match stream.try_read(&mut buf) {
-                                Ok(_) => {}
+                                Ok(len) => {
+                                    let _ = inbound_accept
+                                        .send((buf[..len].to_vec(), stream.clone()))
+                                        .await;
+                                }
                                 Err(e) => {
-                                    println!("Couldn't read: {:?}", e)
+                                    println!("Couldn't read: {:?}", e);
                                 }
                             }
-
-                            inbound.send((buf, Arc::new(stream))).await.unwrap();
                         }
+
+                        // Spawn a task dedicated to continuously reading from this client
+                        let inbound_task = inbound_accept.clone();
+                        let stream_task = stream.clone();
+                        tokio::spawn(async move {
+                            let mut read_buf = vec![0u8; 2048];
+                            loop {
+                                let ready = stream_task.ready(Interest::READABLE).await.unwrap();
+                                if ready.is_readable() {
+                                    match stream_task.try_read(&mut read_buf) {
+                                        Ok(0) => break, // connection closed
+                                        Ok(len) => {
+                                            let _ = inbound_task
+                                                .send((read_buf[..len].to_vec(), stream_task.clone()))
+                                                .await;
+                                        }
+                                        Err(e) => {
+                                            println!("Couldn't read: {:?}", e);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        });
                     }
                     Err(e) => {
                         eprintln!("{}", e);
@@ -130,11 +152,11 @@ pub async fn start_tcp_task(
             }
         });
 
+        // Task responsible for sending queued TCP messages
         tokio::spawn(async move {
             while let Some((bytes, stream)) = outbound.recv().await {
                 let ready = stream.ready(Interest::WRITABLE).await.unwrap();
 
-                // If stream is writable, send the players uuid
                 if ready.is_writable() {
                     match stream.try_write(&*bytes) {
                         Ok(_) => {}
