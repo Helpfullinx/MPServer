@@ -5,6 +5,7 @@ mod util;
 
 use crate::network::net_manage::{Communication, start_tcp_task, start_udp_task};
 use crate::network::net_system::{tcp_net_receive, tcp_net_send, udp_net_receive, udp_net_send};
+use crate::network::net_tasks::{build_connection_messages, handle_udp_message};
 use bevy_ecs::prelude::*;
 use bincode::{Decode, Encode};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -12,7 +13,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::{io, sync::mpsc};
-use crate::network::net_tasks::{build_connection_messages, handle_udp_message};
 
 #[derive(Resource)]
 struct FixedTime {
@@ -29,6 +29,7 @@ async fn main() -> io::Result<()> {
     let (tcp_receive_tx, tcp_receive_rx) = mpsc::channel::<(Vec<u8>, Arc<TcpStream>)>(1_000);
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 4444);
+    println!("Server starting; listening on 0.0.0.0:4444...");
 
     start_tcp_task(addr, tcp_send_rx, tcp_receive_tx).await?;
     start_udp_task(addr, udp_send_rx, udp_receive_tx, 8).await?;
@@ -41,6 +42,7 @@ async fn main() -> io::Result<()> {
         tcp_send_tx,
         tcp_receive_rx,
     ));
+    
     world.insert_resource(FixedTime {
         timestep: Duration::from_secs_f64(1.0 / 60.0),
         accumulator: Duration::ZERO,

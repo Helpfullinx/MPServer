@@ -1,10 +1,8 @@
 use crate::components::common::Position;
 use crate::components::entity::Entity;
 use crate::components::player::PlayerBundle;
-use crate::network::net_message::NetworkMessageType;
+use crate::network::net_message::UDP;
 use bincode::config;
-use bincode::config::Configuration;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[test]
@@ -26,9 +24,9 @@ fn encode() -> Vec<u8> {
         (Entity::new(1), Position::new(0.0, 0.0)),
     ];
 
-    let msg: Vec<NetworkMessageType> = vec![
-        NetworkMessageType::Players { players },
-        NetworkMessageType::Entities { entities },
+    let msg: Vec<UDP> = vec![
+        UDP::Players { players },
+        UDP::Entities { entities },
     ];
 
     let buf = bincode::serde::encode_to_vec(msg, config::standard()).unwrap();
@@ -38,7 +36,7 @@ fn encode() -> Vec<u8> {
     buf
 }
 
-fn decode(buf: Vec<u8>) -> Vec<NetworkMessageType> {
+fn decode(buf: Vec<u8>) -> Vec<UDP> {
     bincode::serde::decode_from_slice(&buf, config::standard())
         .unwrap()
         .0

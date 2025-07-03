@@ -1,6 +1,7 @@
-use std::collections::VecDeque;
+use crate::network::net_message::{NetworkMessage, TCP, UDP};
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
+use std::collections::VecDeque;
 use std::io::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -8,7 +9,6 @@ use tokio::io;
 use tokio::io::Interest;
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::network::net_message::{NetworkMessage, NetworkMessageType};
 
 #[derive(Resource)]
 pub struct Communication {
@@ -22,14 +22,14 @@ pub struct Communication {
 pub struct Connection {
     pub ip_addrs: SocketAddr,
     pub input_packet_buffer: VecDeque<Packet>,
-    pub output_message: Vec<NetworkMessage>,
+    pub output_message: Vec<NetworkMessage<UDP>>,
 }
 
 #[derive(Component, Debug)]
 pub struct TcpConnection {
     pub stream: Arc<TcpStream>,
     pub input_packet_buffer: VecDeque<Packet>,
-    pub output_message: Vec<NetworkMessage>,
+    pub output_message: Vec<NetworkMessage<TCP>>,
     pub lobby_id: u128,
 }
 
@@ -59,7 +59,7 @@ impl Connection {
         Self {
             ip_addrs,
             input_packet_buffer: VecDeque::new(),
-            output_message: Vec::new()
+            output_message: Vec::new(),
         }
     }
 }
@@ -81,7 +81,15 @@ pub async fn start_tcp_task(
     inbound: Sender<(Vec<u8>, Arc<TcpStream>)>,
 ) -> Result<(), Error> {
     let socket = TcpSocket::new_v4()?;
+    //TODO: Figure out the equivalent on windows. I've read that one way is to create a raw
+    // socket and set the windows equivalent of this and then cast it as a tokio socket
+    // https://stackoverflow.com/questions/40468685/how-to-set-the-socket-option-so-reuseport-in-rust
+    
+    // On windows, this does not work as it is unix specific
+    #[cfg(unix)]
     socket.set_reuseport(true)?;
+
+    // I believe this does the equivalent of reuseport for windows targets
     socket.bind(bind_addr)?;
 
     let listener = socket.listen(1024)?;

@@ -1,15 +1,14 @@
 use crate::components::common::{Id, Position};
 use crate::components::entity::Entity;
 use crate::components::player::PlayerBundle;
-use crate::network::net_message::NetworkMessageType::Sequence;
-use bevy_ecs::prelude::{Commands, Component, Query, With};
+use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Index;
-use crate::network::net_manage::{Connection, TcpConnection};
+
+pub trait NetworkMessageType {}
 
 #[derive(Component, Serialize, Deserialize, Clone, Debug)]
-pub struct NetworkMessage(pub NetworkMessageType);
+pub struct NetworkMessage<T: NetworkMessageType>(pub T);
 
 #[derive(Component)]
 pub struct UdpMessage;
@@ -20,7 +19,7 @@ pub struct TcpMessage;
 pub type SequenceNumber = u32;
 pub type BitMask = u8;
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum NetworkMessageType {
+pub enum UDP {
     Sequence {
         sequence_number: SequenceNumber,
     },
@@ -37,6 +36,16 @@ pub enum NetworkMessageType {
         keymask: BitMask,
         player_id: u128,
     },
+}
+
+impl NetworkMessageType for UDP {}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum TCP {
+    TextMessage {
+        message: String,
+        // Time stamp probably
+    },
     Join {
         lobby_id: u128,
     },
@@ -44,3 +53,5 @@ pub enum NetworkMessageType {
         player_uid: u128,
     },
 }
+
+impl NetworkMessageType for TCP {}
