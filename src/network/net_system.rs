@@ -77,7 +77,6 @@ pub fn tcp_net_receive(
                         c.input_packet_buffer.push_back(Packet {
                             bytes: bytes.clone(),
                         });
-                        handle_join(&mut c, &bytes, &mut commands);
                     }
                     None => {
                         let mut conn = TcpConnection::new(stream);
