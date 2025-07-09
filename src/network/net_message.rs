@@ -4,17 +4,12 @@ use crate::components::player::PlayerBundle;
 use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::components::chat::ChatMessage;
 
 pub trait NetworkMessageType {}
 
 #[derive(Component, Serialize, Deserialize, Clone, Debug)]
 pub struct NetworkMessage<T: NetworkMessageType>(pub T);
-
-#[derive(Component)]
-pub struct UdpMessage;
-
-#[derive(Component)]
-pub struct TcpMessage;
 
 pub type SequenceNumber = u32;
 pub type BitMask = u8;
@@ -42,9 +37,11 @@ impl NetworkMessageType for UDP {}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum TCP {
-    TextMessage {
-        message: String,
-        // Time stamp probably
+    ChatMessage {
+        message: ChatMessage,
+    },
+    Chat {
+        messages: Vec<ChatMessage>
     },
     Join {
         lobby_id: u128,

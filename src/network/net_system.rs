@@ -1,5 +1,5 @@
 use crate::Communication;
-use crate::network::net_manage::{Connection, Packet, TcpConnection};
+use crate::network::net_manage::{UdpConnection, Packet, TcpConnection};
 use crate::network::server::server_join::handle_join;
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::prelude::{Commands, Query};
@@ -9,7 +9,7 @@ use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 
 pub fn udp_net_receive(
     mut comm: ResMut<Communication>,
-    mut connections: Query<&mut Connection>,
+    mut connections: Query<&mut UdpConnection>,
     mut commands: Commands,
 ) {
     while !comm.udp_rx.is_empty() {
@@ -24,7 +24,7 @@ pub fn udp_net_receive(
                         });
                     }
                     None => {
-                        let mut conn = Connection::new(addr);
+                        let mut conn = UdpConnection::new(addr);
                         conn.input_packet_buffer.push_back(Packet {
                             bytes: bytes.clone(),
                         });
@@ -38,7 +38,7 @@ pub fn udp_net_receive(
     }
 }
 
-pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Connection>) {
+pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut UdpConnection>) {
     for mut c in connections.iter_mut() {
         if c.output_message.is_empty() {
             continue;
@@ -64,27 +64,26 @@ pub fn tcp_net_receive(
     // TODO: There should be a global lobby hashmap that will hold a bunch of these hashsets, and then figure out a way to work with that
     // Hashset of all player uuid's in lobby
     // let mut players: HashSet<Uuid> = HashSet::new();
-
+    // println!("{:?}", connections.iter().len());
+    
     while !comm.tcp_rx.is_empty() {
         match comm.tcp_rx.try_recv() {
             Ok((bytes, stream)) => {
                 let c = connections
                     .iter_mut()
                     .find(|x| same_stream(&*x.stream, &*stream));
-
+                
                 match c {
                     Some(mut c) => {
                         c.input_packet_buffer.push_back(Packet {
                             bytes: bytes.clone(),
                         });
-                        handle_join(&mut c, &bytes, &mut commands);
                     }
                     None => {
                         let mut conn = TcpConnection::new(stream);
                         conn.input_packet_buffer.push_back(Packet {
                             bytes: bytes.clone(),
                         });
-                        handle_join(&mut conn, &bytes, &mut commands);
                         commands.spawn(conn);
                     }
                 }
@@ -103,10 +102,9 @@ pub fn tcp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Tcp
 
         let message = bincode::serde::encode_to_vec(&c.output_message, config::standard()).unwrap();
 
-        let x = comm.tcp_tx.try_send((message.clone(), c.stream.clone()));
-
-        match x {
+        match comm.tcp_tx.try_send((message.clone(), c.stream.clone())) {
             Ok(()) => {
+                println!("OK");
                 c.output_message.clear();
             }
             Err(TrySendError::Full(_)) => break,

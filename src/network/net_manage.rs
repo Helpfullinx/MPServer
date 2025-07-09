@@ -19,7 +19,7 @@ pub struct Communication {
 }
 
 #[derive(Component)]
-pub struct Connection {
+pub struct UdpConnection {
     pub ip_addrs: SocketAddr,
     pub input_packet_buffer: VecDeque<Packet>,
     pub output_message: Vec<NetworkMessage<UDP>>,
@@ -54,7 +54,7 @@ impl Communication {
     }
 }
 
-impl Connection {
+impl UdpConnection {
     pub fn new(ip_addrs: SocketAddr) -> Self {
         Self {
             ip_addrs,
@@ -93,59 +93,67 @@ pub async fn start_tcp_task(
     socket.bind(bind_addr)?;
 
     let listener = socket.listen(1024)?;
+    
+    tokio::spawn(async move {
+        loop {
+            // Accept first connection in queue
+            match listener.accept().await {
+                // If valid connection, read data
+                Ok((stream, addr)) => {
+                    println!("New connection from {}", addr);
+
+                    
+                    let inbound_arc = inbound.clone();
+                    let stream_arc_outer =  Arc::new(stream);
+                    
+                    tokio::spawn(async move {
+                        let stream_arc_inner = stream_arc_outer.clone();
+                        loop {
+                            // TODO: Apparently this can create false positives and what it reads because of that may be empty, therefore we have to check that
+                            // Get the ready-ness value for the stream
+                            let ready = stream_arc_inner.ready(Interest::READABLE).await.unwrap();
+
+                            // If stream is in a readable state, we read in the lobby id
+                            if ready.is_readable() {
+                                // Buffer for holding data received through stream
+                                let mut buf = vec![0u8; 1024];
+
+                                // Read in the lobby id
+                                match stream_arc_inner.try_read(&mut buf) {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        println!("Couldn't read: {:?}", e)
+                                    }
+                                }
+
+                                inbound_arc.send((buf, stream_arc_inner.clone())).await.unwrap();
+                            }
+                        }
+                    });
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+            }
+        }
+    });
 
     tokio::spawn(async move {
-        tokio::spawn(async move {
-            loop {
-                // Accept first connection in queue
-                match listener.accept().await {
-                    // If valid connection, read data
-                    Ok((stream, addr)) => {
-                        println!("New connection from {}", addr);
-
-                        // TODO: Apparently this can create false positives and what it reads because of that may be empty, therefore we have to check that
-                        // Get the ready-ness value for the stream
-                        let ready = stream.ready(Interest::READABLE).await.unwrap();
-
-                        // If stream is in a readable state, we read in the lobby id
-                        if ready.is_readable() {
-                            // Buffer for holding data received through stream
-                            let mut buf = vec![0u8; 200];
-
-                            // Read in the lobby id
-                            match stream.try_read(&mut buf) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    println!("Couldn't read: {:?}", e)
-                                }
-                            }
-
-                            inbound.send((buf, Arc::new(stream))).await.unwrap();
-                        }
-                    }
+        while let Some((bytes, stream)) = outbound.recv().await {
+            let ready = stream.ready(Interest::WRITABLE).await.unwrap();
+            
+            if ready.is_writable() {
+                match stream.try_write(&*bytes) {
+                    Ok(_) => { println!("Message Sent") }
                     Err(e) => {
-                        eprintln!("{}", e);
+                        println!("Couldn't write: {:?}", e)
+                        
                     }
-                }
+                };
             }
-        });
-
-        tokio::spawn(async move {
-            while let Some((bytes, stream)) = outbound.recv().await {
-                let ready = stream.ready(Interest::WRITABLE).await.unwrap();
-
-                // If stream is writable, send the players uuid
-                if ready.is_writable() {
-                    match stream.try_write(&*bytes) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            println!("Couldn't write: {:?}", e)
-                        }
-                    };
-                }
-            }
-        });
+        }
     });
+
 
     Ok(())
 }

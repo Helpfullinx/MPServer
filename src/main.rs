@@ -3,9 +3,10 @@ mod math;
 mod network;
 mod util;
 
+use std::collections::VecDeque;
 use crate::network::net_manage::{Communication, start_tcp_task, start_udp_task};
 use crate::network::net_system::{tcp_net_receive, tcp_net_send, udp_net_receive, udp_net_send};
-use crate::network::net_tasks::{build_connection_messages, handle_udp_message};
+use crate::network::net_tasks::{build_connection_messages, handle_tcp_message, handle_udp_message};
 use bevy_ecs::prelude::*;
 use bincode::{Decode, Encode};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -13,6 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::{io, sync::mpsc};
+use crate::components::chat::{send_chat_to_all_connections, Chat};
 
 #[derive(Resource)]
 struct FixedTime {
@@ -48,12 +50,16 @@ async fn main() -> io::Result<()> {
         accumulator: Duration::ZERO,
         last_update: Instant::now(),
     });
+    
+    setup(&mut world);
 
     let mut schedule = Schedule::default();
     schedule.add_systems((
         udp_net_receive,
         tcp_net_receive,
         handle_udp_message.after(udp_net_receive),
+        handle_tcp_message.after(tcp_net_receive),
+        send_chat_to_all_connections.after(handle_tcp_message),
         build_connection_messages.after(handle_udp_message),
         udp_net_send.after(build_connection_messages),
         tcp_net_send.after(tcp_net_receive),
@@ -64,6 +70,14 @@ async fn main() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+fn setup(world: &mut World) {
+    world.commands().spawn(
+        Chat{
+            chat_history: VecDeque::new()
+        }
+    );
 }
 
 fn fixed_timestep_runner(world: &mut World, schedule: &mut Schedule) {
