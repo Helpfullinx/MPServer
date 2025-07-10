@@ -38,10 +38,11 @@ impl NetworkMessageType for UDP {}
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum TCP {
     ChatMessage {
+        player_id: u128,
         message: ChatMessage,
     },
     Chat {
-        messages: Vec<ChatMessage>
+        messages: Vec<(u128, ChatMessage)>
     },
     Join {
         lobby_id: u128,

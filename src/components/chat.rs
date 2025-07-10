@@ -6,7 +6,7 @@ use crate::network::net_message::{NetworkMessage, TCP};
 
 #[derive(Component)]
 pub struct Chat {
-    pub chat_history: VecDeque<ChatMessage>
+    pub chat_history: VecDeque<(u128, ChatMessage)>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -17,7 +17,7 @@ pub struct ChatMessage {
 const CHAT_HISTORY_LEN: usize = 10;
 
 pub fn add_chat_message(
-    message: ChatMessage,
+    message: (u128, ChatMessage),
     chat: &mut Query<&mut Chat>
 ) {
     if let Some(mut chat) = chat.single_mut().ok() {

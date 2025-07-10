@@ -3,6 +3,7 @@ use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Resource;
 use std::collections::VecDeque;
 use std::io::Error;
+use std::io::ErrorKind::{ConnectionAborted, WouldBlock};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io;
@@ -18,9 +19,9 @@ pub struct Communication {
     pub tcp_rx: Receiver<(Vec<u8>, Arc<TcpStream>)>,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct UdpConnection {
-    pub ip_addrs: SocketAddr,
+    pub socket: SocketAddr,
     pub input_packet_buffer: VecDeque<Packet>,
     pub output_message: Vec<NetworkMessage<UDP>>,
 }
@@ -57,7 +58,7 @@ impl Communication {
 impl UdpConnection {
     pub fn new(ip_addrs: SocketAddr) -> Self {
         Self {
-            ip_addrs,
+            socket: ip_addrs,
             input_packet_buffer: VecDeque::new(),
             output_message: Vec::new(),
         }
@@ -96,12 +97,9 @@ pub async fn start_tcp_task(
     
     tokio::spawn(async move {
         loop {
-            // Accept first connection in queue
             match listener.accept().await {
-                // If valid connection, read data
                 Ok((stream, addr)) => {
                     println!("New connection from {}", addr);
-
                     
                     let inbound_arc = inbound.clone();
                     let stream_arc_outer =  Arc::new(stream);
@@ -110,23 +108,21 @@ pub async fn start_tcp_task(
                         let stream_arc_inner = stream_arc_outer.clone();
                         loop {
                             // TODO: Apparently this can create false positives and what it reads because of that may be empty, therefore we have to check that
-                            // Get the ready-ness value for the stream
                             let ready = stream_arc_inner.ready(Interest::READABLE).await.unwrap();
 
-                            // If stream is in a readable state, we read in the lobby id
                             if ready.is_readable() {
-                                // Buffer for holding data received through stream
                                 let mut buf = vec![0u8; 1024];
 
-                                // Read in the lobby id
                                 match stream_arc_inner.try_read(&mut buf) {
-                                    Ok(_) => {}
+                                    Ok(0) => { break }
+                                    Ok(len) => {
+                                        println!("buf: {:?}", &buf[..len]);
+                                        let _ = inbound_arc.send((buf[..len].to_vec(), stream_arc_inner.clone())).await;
+                                    }
                                     Err(e) => {
-                                        println!("Couldn't read: {:?}", e)
+                                        println!("Couldn't read: {:?}", e);
                                     }
                                 }
-
-                                inbound_arc.send((buf, stream_arc_inner.clone())).await.unwrap();
                             }
                         }
                     });
@@ -147,7 +143,6 @@ pub async fn start_tcp_task(
                     Ok(_) => { println!("Message Sent") }
                     Err(e) => {
                         println!("Couldn't write: {:?}", e)
-                        
                     }
                 };
             }
@@ -173,7 +168,7 @@ pub async fn start_udp_task(
         let inbound_tx = inbound.clone();
 
         tokio::spawn(async move {
-            let mut buf = vec![0u8; 2048];
+            let mut buf = vec![0u8; 1024];
             loop {
                 match recv_sock.recv_from(&mut buf).await {
                     Ok((len, addr)) => {
@@ -181,7 +176,6 @@ pub async fn start_udp_task(
                     }
                     Err(e) => {
                         eprintln!("Couldn't read: {e}");
-                        break;
                     }
                 }
             }

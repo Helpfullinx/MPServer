@@ -71,15 +71,15 @@ pub fn handle_tcp_message(
         for _ in 0..min(MESSAGE_PER_TICK_MAX, c.input_packet_buffer.len()) {
             match c.input_packet_buffer.pop_front() {
                 Some(p) => {
-                    let decoded: (Vec<TCP>, usize) =
+                    let mut decoded: (Vec<TCP>, usize) =
                         bincode::serde::decode_from_slice(&p.bytes, config::standard()).unwrap();
                     
-                    println!("decoded: {:?}", decoded);
+                    // println!("decoded: {:?}", decoded);
                     
-                    for m in decoded.0.iter() {
+                    for m in decoded.0.iter_mut() {
                         match m {
-                            TCP::ChatMessage { message } => {
-                                add_chat_message(message.clone(), &mut chat);
+                            TCP::ChatMessage { player_id, message } => {
+                                add_chat_message((*player_id, message.clone()), &mut chat);
                             }
                             TCP::Join { lobby_id } => {
                                 handle_join(*lobby_id, &mut c, &mut commands);

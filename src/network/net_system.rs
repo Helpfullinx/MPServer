@@ -14,9 +14,11 @@ pub fn udp_net_receive(
 ) {
     while !comm.udp_rx.is_empty() {
         match comm.udp_rx.try_recv() {
-            Ok((bytes, addr)) => {
-                let c = connections.iter_mut().find(|x| x.ip_addrs == addr);
-
+            Ok((bytes, socket)) => {
+                let c = connections.iter_mut().find(|x| (x.socket.ip() == socket.ip()) && (x.socket.port() == socket.port()));
+                
+                // println!("{:?}", c);
+                
                 match c {
                     Some(mut c) => {
                         c.input_packet_buffer.push_back(Packet {
@@ -24,7 +26,7 @@ pub fn udp_net_receive(
                         });
                     }
                     None => {
-                        let mut conn = UdpConnection::new(addr);
+                        let mut conn = UdpConnection::new(socket);
                         conn.input_packet_buffer.push_back(Packet {
                             bytes: bytes.clone(),
                         });
@@ -46,7 +48,7 @@ pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Udp
 
         let message = bincode::serde::encode_to_vec(&c.output_message, config::standard()).unwrap();
 
-        match comm.udp_tx.try_send((message.clone(), c.ip_addrs)) {
+        match comm.udp_tx.try_send((message.clone(), c.socket)) {
             Ok(()) => {
                 c.output_message.clear();
             }
@@ -61,11 +63,6 @@ pub fn tcp_net_receive(
     mut connections: Query<&mut TcpConnection>,
     mut comm: ResMut<Communication>,
 ) {
-    // TODO: There should be a global lobby hashmap that will hold a bunch of these hashsets, and then figure out a way to work with that
-    // Hashset of all player uuid's in lobby
-    // let mut players: HashSet<Uuid> = HashSet::new();
-    // println!("{:?}", connections.iter().len());
-    
     while !comm.tcp_rx.is_empty() {
         match comm.tcp_rx.try_recv() {
             Ok((bytes, stream)) => {
