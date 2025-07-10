@@ -1,4 +1,4 @@
-use crate::components::common::Position;
+use crate::components::common::{Id, Position};
 use crate::components::entity::Entity;
 use crate::components::player::PlayerBundle;
 use crate::network::net_message::UDP;
@@ -16,7 +16,7 @@ fn test_encode_decode() {
 fn encode() -> Vec<u8> {
     let mut players = HashMap::new();
     for i in 1..=3 {
-        players.insert(i, PlayerBundle::default());
+        players.insert(Id(i), PlayerBundle::default());
     }
 
     let entities = vec![
@@ -26,7 +26,6 @@ fn encode() -> Vec<u8> {
 
     let msg: Vec<UDP> = vec![
         UDP::Players { players },
-        UDP::Entities { entities },
     ];
 
     let buf = bincode::serde::encode_to_vec(msg, config::standard()).unwrap();

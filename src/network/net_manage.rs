@@ -76,6 +76,48 @@ impl TcpConnection {
     }
 }
 
+pub async fn start_udp_task(
+    bind_addr: SocketAddr,
+    mut outbound: Receiver<(Vec<u8>, SocketAddr)>,
+    inbound: Sender<(Vec<u8>, SocketAddr)>,
+    pool_size: usize,
+) -> io::Result<()> {
+    // Create and share the socket
+    let socket = Arc::new(UdpSocket::bind(bind_addr).await?); // separate handles are handy
+
+    // Receive Loop - Creates number of tasks based on pool size specified
+    for _ in 0..pool_size {
+        let recv_sock = socket.clone();
+        let inbound_tx = inbound.clone();
+
+        tokio::spawn(async move {
+            let mut buf = vec![0u8; 1024];
+            loop {
+                match recv_sock.recv_from(&mut buf).await {
+                    Ok((len, addr)) => {
+                        let _ = inbound_tx.send((buf[..len].to_vec(), addr)).await;
+                    }
+                    Err(e) => {
+                        eprintln!("Couldn't read: {e}");
+                    }
+                }
+            }
+        });
+    }
+
+    // Send Loop
+    let send_sock = socket.clone();
+    tokio::spawn(async move {
+        while let Some((bytes, addr)) = outbound.recv().await {
+            if let Err(e) = send_sock.send_to(&bytes, &addr).await {
+                eprintln!("Couldn't write: {e}");
+            }
+        }
+    });
+
+    Ok(())
+}
+
 pub async fn start_tcp_task(
     bind_addr: SocketAddr,
     mut outbound: Receiver<(Vec<u8>, Arc<TcpStream>)>,
@@ -149,48 +191,6 @@ pub async fn start_tcp_task(
         }
     });
 
-
-    Ok(())
-}
-
-pub async fn start_udp_task(
-    bind_addr: SocketAddr,
-    mut outbound: Receiver<(Vec<u8>, SocketAddr)>,
-    inbound: Sender<(Vec<u8>, SocketAddr)>,
-    pool_size: usize,
-) -> io::Result<()> {
-    // Create and share the socket
-    let socket = Arc::new(UdpSocket::bind(bind_addr).await?); // separate handles are handy
-
-    // Receive Loop - Creates number of tasks based on pool size specified
-    for _ in 0..pool_size {
-        let recv_sock = socket.clone();
-        let inbound_tx = inbound.clone();
-
-        tokio::spawn(async move {
-            let mut buf = vec![0u8; 1024];
-            loop {
-                match recv_sock.recv_from(&mut buf).await {
-                    Ok((len, addr)) => {
-                        let _ = inbound_tx.send((buf[..len].to_vec(), addr)).await;
-                    }
-                    Err(e) => {
-                        eprintln!("Couldn't read: {e}");
-                    }
-                }
-            }
-        });
-    }
-
-    // Send Loop
-    let send_sock = socket.clone();
-    tokio::spawn(async move {
-        while let Some((bytes, addr)) = outbound.recv().await {
-            if let Err(e) = send_sock.send_to(&bytes, &addr).await {
-                eprintln!("Couldn't write: {e}");
-            }
-        }
-    });
 
     Ok(())
 }

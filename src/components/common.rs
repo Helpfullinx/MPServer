@@ -3,8 +3,9 @@ use bevy_ecs::query::QueryData;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Component, Serialize, Deserialize, Clone, Copy, Debug, Hash)]
-pub struct Id(pub u128);
+#[derive(Component, Serialize, Deserialize, Clone, Copy, Debug, Hash, PartialEq)]
+#[derive(Eq)]
+pub struct Id(pub u32);
 
 #[derive(Component, Serialize, Deserialize, Default, Clone, Copy, Debug)]
 pub struct Position {

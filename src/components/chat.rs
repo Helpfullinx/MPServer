@@ -1,12 +1,16 @@
 use std::collections::VecDeque;
 use bevy_ecs::prelude::{Changed, Component, Query};
 use serde::{Deserialize, Serialize};
+use crate::components::common::Id;
 use crate::network::net_manage::TcpConnection;
 use crate::network::net_message::{NetworkMessage, TCP};
 
+const CHAT_HISTORY_LEN: usize = 10;
+const MAX_CHAT_MESSAGE_LENGTH: usize = 50;
+
 #[derive(Component)]
 pub struct Chat {
-    pub chat_history: VecDeque<(u128, ChatMessage)>
+    pub chat_history: VecDeque<(Id, ChatMessage)>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -14,18 +18,17 @@ pub struct ChatMessage {
     pub message: String,
 }
 
-const CHAT_HISTORY_LEN: usize = 10;
-
 pub fn add_chat_message(
-    message: (u128, ChatMessage),
+    message: (Id, ChatMessage),
     chat: &mut Query<&mut Chat>
 ) {
     if let Some(mut chat) = chat.single_mut().ok() {
         while chat.chat_history.len() >= CHAT_HISTORY_LEN {
             chat.chat_history.pop_front();
         }
-        
-        chat.chat_history.push_back(message);
+        if !(message.1.message.len() > MAX_CHAT_MESSAGE_LENGTH) {
+            chat.chat_history.push_back(message);
+        }
     }
 }
 

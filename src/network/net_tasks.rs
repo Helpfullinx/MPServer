@@ -1,6 +1,6 @@
 use crate::components::common::{Id, Position};
 use crate::components::player::PlayerBundle;
-use crate::network::net_manage::{Packet, TcpConnection, UdpConnection};
+use crate::network::net_manage::{TcpConnection, UdpConnection};
 use crate::network::net_message::{NetworkMessage, TCP, UDP};
 use crate::network::server::player_input::handle_input;
 use bevy_ecs::change_detection::DetectChanges;
@@ -21,12 +21,17 @@ pub fn handle_udp_message(
         for _ in 0..min(MESSAGE_PER_TICK_MAX, c.input_packet_buffer.len()) {
             match c.input_packet_buffer.pop_front() {
                 Some(p) => {
-                    let decoded: (Vec<UDP>, usize) =
-                        bincode::serde::decode_from_slice(&p.bytes, config::standard()).unwrap();
+                    let decoded_message: (Vec<UDP>, usize) = match bincode::serde::decode_from_slice(&p.bytes, config::standard()) {
+                        Ok(m) => m,
+                        Err(e) => {
+                            println!("Couldn't decode UDP message: {:?}", e);
+                            continue;
+                        }
+                    };
 
                     let mut seq_num = None;
 
-                    for m in decoded.0.iter() {
+                    for m in decoded_message.0.iter() {
                         match m {
                             UDP::Sequence { sequence_number } => {
                                 seq_num = Some(sequence_number);
@@ -39,7 +44,7 @@ pub fn handle_udp_message(
                         continue;
                     };
 
-                    for m in decoded.0.iter() {
+                    for m in decoded_message.0.iter() {
                         match m {
                             UDP::Input { keymask, player_id } => {
                                 handle_input(*keymask, *player_id, &mut players);
@@ -71,12 +76,15 @@ pub fn handle_tcp_message(
         for _ in 0..min(MESSAGE_PER_TICK_MAX, c.input_packet_buffer.len()) {
             match c.input_packet_buffer.pop_front() {
                 Some(p) => {
-                    let mut decoded: (Vec<TCP>, usize) =
-                        bincode::serde::decode_from_slice(&p.bytes, config::standard()).unwrap();
+                    let mut decoded_message: (Vec<TCP>, usize) = match bincode::serde::decode_from_slice(&p.bytes, config::standard()) {
+                        Ok(m) => m,
+                        Err(e) => {
+                            println!("Couldn't decode TCP message: {:?}", e);
+                            continue;
+                        }
+                    };
                     
-                    // println!("decoded: {:?}", decoded);
-                    
-                    for m in decoded.0.iter_mut() {
+                    for m in decoded_message.0.iter_mut() {
                         match m {
                             TCP::ChatMessage { player_id, message } => {
                                 add_chat_message((*player_id, message.clone()), &mut chat);
@@ -98,10 +106,10 @@ pub fn build_connection_messages(
     mut connections: Query<&mut UdpConnection>,
     players: Query<(&Id, Ref<Position>)>,
 ) {
-    let all_positions: HashMap<u128, PlayerBundle> = players
+    let all_positions: HashMap<Id, PlayerBundle> = players
         .iter()
         .filter(|(_, p)| p.is_changed())
-        .map(|(i, p)| (i.0, PlayerBundle { position: *p }))
+        .map(|(i, p)| (*i, PlayerBundle { position: *p }))
         .collect();
 
     for mut c in connections.iter_mut() {

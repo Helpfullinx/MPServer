@@ -17,8 +17,6 @@ pub fn udp_net_receive(
             Ok((bytes, socket)) => {
                 let c = connections.iter_mut().find(|x| (x.socket.ip() == socket.ip()) && (x.socket.port() == socket.port()));
                 
-                // println!("{:?}", c);
-                
                 match c {
                     Some(mut c) => {
                         c.input_packet_buffer.push_back(Packet {
@@ -46,9 +44,15 @@ pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Udp
             continue;
         }
 
-        let message = bincode::serde::encode_to_vec(&c.output_message, config::standard()).unwrap();
+        let encoded_message = match bincode::serde::encode_to_vec(&c.output_message, config::standard()) {
+            Ok(m) => m,
+            Err(e) => {
+                println!("Couldn't encode UDP message: {:?}", e);
+                continue;
+            }
+        };
 
-        match comm.udp_tx.try_send((message.clone(), c.socket)) {
+        match comm.udp_tx.try_send((encoded_message.clone(), c.socket)) {
             Ok(()) => {
                 c.output_message.clear();
             }
@@ -97,9 +101,15 @@ pub fn tcp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Tcp
             continue;
         }
 
-        let message = bincode::serde::encode_to_vec(&c.output_message, config::standard()).unwrap();
+        let encoded_message = match bincode::serde::encode_to_vec(&c.output_message, config::standard()) {
+            Ok(m) => m,
+            Err(e) => {
+                println!("Couldn't encode TCP message: {:?}", e);
+                continue;
+            }
+        };
 
-        match comm.tcp_tx.try_send((message.clone(), c.stream.clone())) {
+        match comm.tcp_tx.try_send((encoded_message.clone(), c.stream.clone())) {
             Ok(()) => {
                 println!("OK");
                 c.output_message.clear();
