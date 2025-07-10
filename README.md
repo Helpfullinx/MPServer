@@ -1,4 +1,4 @@
-## Multiplayer Client
+## Multiplayer Server
 ___
 ### Features to Add
 - [x] Fix chat message overflow
