@@ -1,6 +1,6 @@
-use crate::components::common::{Id, Position};
+use crate::components::common::Id;
 use crate::components::entity::Entity;
-use crate::components::player::PlayerBundle;
+use crate::components::player::Player;
 use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -19,7 +19,7 @@ pub enum UDP {
         sequence_number: SequenceNumber,
     },
     Players {
-        players: HashMap<Id, PlayerBundle>,
+        players: HashMap<Id, Player>,
     },
     Input {
         keymask: BitMask,

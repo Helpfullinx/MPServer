@@ -7,3 +7,4 @@ ___
 - [ ] Update to 3D transforms instead of 2D
 - [x] Remove all uses of unsafe unwraps
 - [x] Change ID type to use a u32 instead of a u128
+- [ ] Switch to using a headless bevy app instead of raw ECS

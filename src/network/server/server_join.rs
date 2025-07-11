@@ -1,11 +1,8 @@
-use crate::components::common::{Id, Position};
-use crate::components::player::PlayerBundle;
+use crate::components::common::{Id, Vec3};
+use crate::components::player::Player;
 use crate::network::net_manage::TcpConnection;
 use crate::network::net_message::{NetworkMessage, TCP};
 use bevy_ecs::prelude::Commands;
-use bincode::config;
-use rand::Rng;
-use uuid::Uuid;
 use crate::util::generate_random_u32;
 
 pub fn handle_join(
@@ -20,7 +17,13 @@ pub fn handle_join(
     
     println!("Player joined: {:?}", player_id);
 
-    commands.spawn((PlayerBundle::new(Position::new(0.0, 0.0)), Id(player_id)));
+    commands.spawn((
+        Player::new(
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 0.0)
+        ),
+        Id(player_id)
+    ));
     
     connection.output_message.push(NetworkMessage(TCP::PlayerId {
         player_uid: Id(player_id),

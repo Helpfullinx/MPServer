@@ -1,14 +1,19 @@
-use crate::components::common::{Id, Position};
-use bevy_ecs::bundle::Bundle;
+use bevy_ecs::prelude::Component;
+use bevy_ecs::query::QueryData;
 use serde::{Deserialize, Serialize};
+use crate::components::common::Vec3;
 
-#[derive(Bundle, Serialize, Deserialize, Default, Debug, Copy, Clone)]
-pub struct PlayerBundle {
-    pub position: Position,
+#[derive(Component, Serialize, Deserialize, Default, Debug, Copy, Clone)]
+pub struct Player {
+    pub position: Vec3,
+    pub angular_velocity: Vec3
 }
 
-impl PlayerBundle {
-    pub fn new(position: Position) -> Self {
-        Self { position }
+impl Player {
+    pub fn new(position: Vec3, angular_velocity: Vec3) -> Self {
+        Self { 
+            position,
+            angular_velocity
+        }
     }
 }
