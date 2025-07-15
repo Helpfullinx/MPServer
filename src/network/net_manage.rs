@@ -1,11 +1,10 @@
 use crate::network::net_message::{NetworkMessage, TCP, UDP};
-use bevy_ecs::component::Component;
-use bevy_ecs::prelude::Resource;
 use std::collections::VecDeque;
 use std::io::Error;
 use std::io::ErrorKind::{ConnectionAborted, WouldBlock};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use bevy::prelude::{Component, Resource};
 use tokio::io;
 use tokio::io::Interest;
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};

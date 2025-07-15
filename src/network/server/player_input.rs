@@ -1,6 +1,6 @@
+use bevy::prelude::Query;
 use crate::components::common::Id;
 use crate::network::net_message::BitMask;
-use bevy_ecs::prelude::Query;
 use crate::components::player::Player;
 
 pub fn handle_input(keymask: BitMask, playerid: Id, players: &mut Query<(&Id, &mut Player)>) {
@@ -21,5 +21,6 @@ pub fn handle_input(keymask: BitMask, playerid: Id, players: &mut Query<(&Id, &m
                 player.position.z += move_speed;
             }
         }
+        println!("player pos: {:?}", player);
     }
 }

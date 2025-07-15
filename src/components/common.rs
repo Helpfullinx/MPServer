@@ -1,5 +1,4 @@
-use bevy_ecs::component::{Component, StorageType};
-use bevy_ecs::query::QueryData;
+use bevy::prelude::Component;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 

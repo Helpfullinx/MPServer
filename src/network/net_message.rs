@@ -1,9 +1,9 @@
 use crate::components::common::Id;
 use crate::components::entity::Entity;
 use crate::components::player::Player;
-use bevy_ecs::prelude::Component;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use bevy::prelude::Component;
 use crate::components::chat::ChatMessage;
 
 pub trait NetworkMessageType {}

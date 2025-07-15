@@ -1,5 +1,4 @@
-use bevy_ecs::prelude::Component;
-use bevy_ecs::query::QueryData;
+use bevy::prelude::Component;
 use serde::{Deserialize, Serialize};
 use crate::components::common::Vec3;
 

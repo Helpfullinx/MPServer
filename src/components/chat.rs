@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use bevy_ecs::prelude::{Changed, Component, Query};
+use bevy::prelude::{Changed, Component, Query};
 use serde::{Deserialize, Serialize};
 use crate::components::common::Id;
 use crate::network::net_manage::TcpConnection;
