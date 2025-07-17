@@ -1,5 +1,5 @@
-use avian3d::prelude::{Collider, RigidBody};
-use bevy::prelude::Commands;
+use avian3d::prelude::{Collider, LinearVelocity, LockedAxes, RigidBody};
+use bevy::prelude::{Commands, Transform};
 use crate::components::common::{Id, Vec3};
 use crate::components::player::Player;
 use crate::network::net_manage::TcpConnection;
@@ -20,11 +20,9 @@ pub fn handle_join(
 
     commands.spawn((
         RigidBody::Dynamic,
-        Collider::sphere(1.0),
-        Player::new(
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(0.0, 0.0, 0.0)
-        ),
+        Collider::cuboid(1.0,1.0,1.0),
+        LockedAxes::new().lock_rotation_x().lock_rotation_y().lock_rotation_z(),
+        Transform::from_xyz(0.0,10.0,0.0),
         Id(player_id)
     ));
     

@@ -1,3 +1,4 @@
+use approx::ulps_eq;
 use bevy::prelude::Component;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -17,5 +18,11 @@ pub struct Vec3 {
 impl Vec3 {
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
+    }
+}
+
+impl PartialEq<Self> for Vec3 {
+    fn eq(&self, other: &Self) -> bool {
+        ulps_eq!(self.x, other.x) && ulps_eq!(self.y, other.y) && ulps_eq!(self.z, other.z)
     }
 }

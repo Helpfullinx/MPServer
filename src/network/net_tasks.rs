@@ -5,16 +5,17 @@ use crate::network::server::player_input::handle_input;
 use bincode::config;
 use std::cmp::min;
 use std::collections::HashMap;
-use bevy::prelude::{Changed, Commands, Query};
+use avian3d::prelude::LinearVelocity;
+use bevy::prelude::{Changed, Commands, Query, Transform};
 use crate::components::chat::{add_chat_message, Chat};
-use crate::components::common::Id;
+use crate::components::common::{Id, Vec3};
 use crate::network::server::server_join::handle_join;
 
 const MESSAGE_PER_TICK_MAX: usize = 20;
 
 pub fn handle_udp_message(
     mut connections: Query<&mut UdpConnection>,
-    mut players: Query<(&Id, &mut Player)>,
+    mut players: Query<(&Id, &mut Transform, &LinearVelocity)>,
 ) {
     for mut c in connections.iter_mut() {
         for _ in 0..min(MESSAGE_PER_TICK_MAX, c.input_packet_buffer.len()) {
@@ -103,11 +104,26 @@ pub fn handle_tcp_message(
 
 pub fn build_connection_messages(
     mut connections: Query<&mut UdpConnection>,
-    players: Query<(&Id, &Player), Changed<Player>>,
+    players: Query<(&Id, &Transform, &LinearVelocity), Changed<Transform>>,
 ) {
     let changed_players: HashMap<Id, Player> = players
         .iter()
-        .map(|(i, p)| (*i, *p))
+        .map(|(i, t, l)| {
+            let player = Player::new(
+                Vec3::new(
+                    t.translation.x,
+                    t.translation.y,
+                    t.translation.z
+                ),
+                Vec3::new(
+                    l.x,
+                    l.y,
+                    l.z
+                )
+            );
+            
+            (*i, player)
+        })
         .collect();
 
     for mut c in connections.iter_mut() {

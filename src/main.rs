@@ -12,7 +12,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use avian3d::{PhysicsPlugins, PhysicsTypeRegistrationPlugin};
-use avian3d::prelude::{Collider, ColliderBackendPlugin, ColliderHierarchyPlugin, ColliderTransformPlugin, MassPropertyPlugin, NarrowPhasePlugin, PhysicsSchedulePlugin, PhysicsSet, PreparePlugin};
+use avian3d::prelude::{Collider, ColliderBackendPlugin, ColliderHierarchyPlugin, ColliderTransformPlugin, MassPropertyPlugin, NarrowPhasePlugin, PhysicsSchedulePlugin, PhysicsSet, PreparePlugin, RigidBody};
 use bevy::render::mesh::MeshPlugin;
 use bevy::scene::ScenePlugin;
 use tokio::net::TcpStream;
@@ -36,16 +36,12 @@ async fn main() -> io::Result<()> {
         .add_plugins((
             MinimalPlugins
                 .set(bevy::app::ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 60.0))),
-            PhysicsSchedulePlugin::default(),
-            PhysicsTypeRegistrationPlugin,
-            PreparePlugin::default(),
-            MassPropertyPlugin::default(),
-            // ColliderHierarchyPlugin,
-            ColliderTransformPlugin::default(),
-            ColliderBackendPlugin::<Collider>::default(),
-            NarrowPhasePlugin::<Collider>::default(),
-            
+            TransformPlugin::default(),
+            AssetPlugin::default(),
+            ScenePlugin,
+            PhysicsPlugins::default()
         ))
+        .init_resource::<Assets<Mesh>>()
         .insert_resource(
             Communication::new(
                 udp_send_tx,
@@ -70,10 +66,18 @@ async fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn setup(mut commands: Commands) {
+fn setup(
+    mut commands: Commands,
+) {
     commands.spawn(
-        (Chat {
+        Chat {
             chat_history: VecDeque::new()
-        })
+        }
     );
+
+    commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(4.0, 0.1, 4.0),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+    ));
 }
