@@ -26,6 +26,6 @@ pub fn handle_input(
                 player.translation.z += move_speed;
             }
         }
-        println!("player lv: {:?}", lv);
+        println!("player: {:?}", player);
     }
 }

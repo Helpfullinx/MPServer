@@ -43,7 +43,9 @@ pub fn handle_udp_message(
                     if seq_num.is_none() {
                         continue;
                     };
-
+                    
+                    println!("sequence number: {:?}", seq_num);
+                    
                     for m in decoded_message.0.iter() {
                         match m {
                             UDP::Input { keymask, player_id } => {
@@ -104,7 +106,7 @@ pub fn handle_tcp_message(
 
 pub fn build_connection_messages(
     mut connections: Query<&mut UdpConnection>,
-    players: Query<(&Id, &Transform, &LinearVelocity), Changed<Transform>>,
+    players: Query<(&Id, &Transform, &LinearVelocity)/*, Changed<Transform>*/>,
 ) {
     let changed_players: HashMap<Id, Player> = players
         .iter()

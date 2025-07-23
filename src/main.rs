@@ -77,7 +77,7 @@ fn setup(
 
     commands.spawn((
         RigidBody::Static,
-        Collider::cuboid(4.0, 0.1, 4.0),
+        Collider::cuboid(40.0, 0.1, 40.0),
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 }
