@@ -21,6 +21,7 @@ pub fn handle_join(
     commands.spawn((
         RigidBody::Dynamic,
         Collider::cuboid(1.0,1.0,1.0),
+        LinearVelocity::default(),
         LockedAxes::new().lock_rotation_x().lock_rotation_y().lock_rotation_z(),
         Transform::from_xyz(0.0,0.5,0.0),
         Id(player_id)
