@@ -34,6 +34,9 @@ pub fn handle_input(
             if keymask & 8 > 0 {
                 vector.z += 1.0;
             }
+            if keymask & 16 > 0 {
+                lv.y += 1.0;
+            }
             
             let normalized_velocity = vector.normalize_or_zero();
             
