@@ -1,7 +1,7 @@
-use avian3d::prelude::{Collider, LinearVelocity, LockedAxes, RigidBody};
+use avian3d::prelude::{Collider, Friction, LinearVelocity, LockedAxes, RigidBody};
 use bevy::prelude::{Commands, Transform};
 use crate::components::common::{Id, Vec3};
-use crate::components::player::Player;
+use crate::components::player::{Player, PlayerMarker};
 use crate::network::net_manage::TcpConnection;
 use crate::network::net_message::{NetworkMessage, TCP};
 use crate::util::generate_random_u32;
@@ -20,14 +20,16 @@ pub fn handle_join(
 
     commands.spawn((
         RigidBody::Dynamic,
-        Collider::cuboid(1.0,1.0,1.0),
+        Collider::capsule(0.5, 1.0),
+        Friction::new(1.0),
         LinearVelocity::default(),
         LockedAxes::new().lock_rotation_x().lock_rotation_y().lock_rotation_z(),
-        Transform::from_xyz(0.0,0.5,0.0),
-        Id(player_id)
+        Transform::from_xyz(0.0,3.0,0.0),
+        Id(player_id),
+        PlayerMarker,
     ));
     
-    connection.output_message.push(NetworkMessage(TCP::PlayerId {
+    connection.add_message(NetworkMessage(TCP::PlayerId {
         player_uid: Id(player_id),
     }));
 }

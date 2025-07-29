@@ -2,6 +2,9 @@ use bevy::prelude::Component;
 use serde::{Deserialize, Serialize};
 use crate::components::common::Vec3;
 
+#[derive(Component)]
+pub struct PlayerMarker;
+
 #[derive(Component, Serialize, Deserialize, Default, Debug, Copy, Clone)]
 pub struct Player {
     pub position: Vec3,

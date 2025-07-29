@@ -1,7 +1,6 @@
 use bevy::prelude::{Commands, Query, ResMut};
 use crate::Communication;
 use crate::network::net_manage::{UdpConnection, Packet, TcpConnection};
-use crate::network::server::server_join::handle_join;
 use bincode::config;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
@@ -39,11 +38,11 @@ pub fn udp_net_receive(
 
 pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut UdpConnection>) {
     for mut c in connections.iter_mut() {
-        if c.output_message.is_empty() {
+        if c.is_empty_messages() {
             continue;
         }
 
-        let encoded_message = match bincode::serde::encode_to_vec(&c.output_message, config::standard()) {
+        let encoded_message = match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
             Ok(m) => m,
             Err(e) => {
                 println!("Couldn't encode UDP message: {:?}", e);
@@ -53,7 +52,7 @@ pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Udp
 
         match comm.udp_tx.try_send((encoded_message.clone(), c.socket)) {
             Ok(()) => {
-                c.output_message.clear();
+                c.clear_messages();
             }
             Err(TrySendError::Full(_)) => break,
             Err(TrySendError::Closed(_)) => break,
@@ -96,11 +95,11 @@ pub fn tcp_net_receive(
 
 pub fn tcp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut TcpConnection>) {
     for mut c in connections.iter_mut() {
-        if c.output_message.is_empty() {
+        if c.is_empty_messages() {
             continue;
         }
 
-        let encoded_message = match bincode::serde::encode_to_vec(&c.output_message, config::standard()) {
+        let encoded_message = match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
             Ok(m) => m,
             Err(e) => {
                 println!("Couldn't encode TCP message: {:?}", e);
@@ -111,7 +110,7 @@ pub fn tcp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Tcp
         match comm.tcp_tx.try_send((encoded_message.clone(), c.stream.clone())) {
             Ok(()) => {
                 println!("OK");
-                c.output_message.clear();
+                c.clear_messages();
             }
             Err(TrySendError::Full(_)) => break,
             Err(TrySendError::Closed(_)) => break,

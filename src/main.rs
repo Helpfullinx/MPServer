@@ -12,12 +12,13 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use avian3d::{PhysicsPlugins, PhysicsTypeRegistrationPlugin};
-use avian3d::prelude::{Collider, ColliderBackendPlugin, ColliderHierarchyPlugin, ColliderTransformPlugin, MassPropertyPlugin, NarrowPhasePlugin, PhysicsSchedulePlugin, PhysicsSet, PreparePlugin, RigidBody};
+use avian3d::prelude::{Collider, ColliderBackendPlugin, ColliderHierarchyPlugin, ColliderTransformPlugin, Friction, LinearVelocity, MassPropertyPlugin, NarrowPhasePlugin, Physics, PhysicsSchedulePlugin, PhysicsSet, PhysicsTime, PreparePlugin, RigidBody, Sleeping};
 use bevy::render::mesh::MeshPlugin;
 use bevy::scene::ScenePlugin;
 use tokio::net::TcpStream;
 use tokio::{io, sync::mpsc};
 use crate::components::chat::{send_chat_to_all_connections, Chat};
+use crate::components::player::PlayerMarker;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -34,14 +35,15 @@ async fn main() -> io::Result<()> {
 
     App::new()
         .add_plugins((
-            MinimalPlugins
-                .set(bevy::app::ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 60.0))),
+            MinimalPlugins,
             TransformPlugin::default(),
             AssetPlugin::default(),
             ScenePlugin,
-            PhysicsPlugins::default()
+            PhysicsPlugins::default().with_length_unit(10.0)
         ))
         .init_resource::<Assets<Mesh>>()
+        .insert_resource(Time::<Fixed>::from_hz(60.0))
+        .insert_resource(Time::<Physics>::default().with_relative_speed(1.0))
         .insert_resource(
             Communication::new(
                 udp_send_tx,
@@ -51,7 +53,7 @@ async fn main() -> io::Result<()> {
             )
         )
         .add_systems(Startup, setup)
-        .add_systems(Update, (
+        .add_systems(FixedUpdate, (
             udp_net_receive,
             tcp_net_receive,
             handle_udp_message.after(udp_net_receive),
@@ -77,7 +79,20 @@ fn setup(
 
     commands.spawn((
         RigidBody::Static,
-        Collider::cuboid(40.0, 0.1, 40.0),
+        Collider::cuboid(40.0, 0.5, 40.0),
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
+}
+
+fn debug_player_sleeping(
+    sleeping_players: Query<(&LinearVelocity, &PlayerMarker), With<Sleeping>>,
+    nonsleeping_players: Query<(&LinearVelocity, &PlayerMarker), Without<Sleeping>>,
+) {
+    for p in sleeping_players.iter() {
+        println!("Sleeping: {:?}", p.0);
+    }
+
+    for p in nonsleeping_players.iter() {
+        println!("NonSleeping: {:?}", p.0);
+    }
 }

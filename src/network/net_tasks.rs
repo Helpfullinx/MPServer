@@ -15,7 +15,7 @@ const MESSAGE_PER_TICK_MAX: usize = 20;
 
 pub fn handle_udp_message(
     mut connections: Query<&mut UdpConnection>,
-    mut players: Query<(&Id, &mut Transform, &LinearVelocity)>,
+    mut players: Query<(&Id, &mut LinearVelocity)>,
 ) {
     for mut c in connections.iter_mut() {
         for _ in 0..min(MESSAGE_PER_TICK_MAX, c.input_packet_buffer.len()) {
@@ -44,7 +44,7 @@ pub fn handle_udp_message(
                         continue;
                     };
                     
-                    println!("sequence number: {:?}", seq_num);
+                    // println!("sequence number: {:?}", seq_num);
                     
                     for m in decoded_message.0.iter() {
                         match m {
@@ -55,7 +55,7 @@ pub fn handle_udp_message(
                         }
                     }
 
-                    c.output_message.push(NetworkMessage(UDP::Sequence {
+                    c.add_message(NetworkMessage(UDP::Sequence {
                         sequence_number: *seq_num.unwrap(),
                     }));
                 }
@@ -129,9 +129,8 @@ pub fn build_connection_messages(
         .collect();
 
     for mut c in connections.iter_mut() {
-        c.output_message
-            .push(NetworkMessage(UDP::Players {
-                players: changed_players.clone(),
-            }));
+        c.add_message(NetworkMessage(UDP::Players {
+            players: changed_players.clone(),
+        }));
     }
 }

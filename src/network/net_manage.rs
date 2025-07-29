@@ -22,14 +22,14 @@ pub struct Communication {
 pub struct UdpConnection {
     pub socket: SocketAddr,
     pub input_packet_buffer: VecDeque<Packet>,
-    pub output_message: Vec<NetworkMessage<UDP>>,
+    output_message: Vec<NetworkMessage<UDP>>,
 }
 
 #[derive(Component, Debug)]
 pub struct TcpConnection {
     pub stream: Arc<TcpStream>,
     pub input_packet_buffer: VecDeque<Packet>,
-    pub output_message: Vec<NetworkMessage<TCP>>,
+    output_message: Vec<NetworkMessage<TCP>>,
     pub lobby_id: u128,
 }
 
@@ -62,6 +62,22 @@ impl UdpConnection {
             output_message: Vec::new(),
         }
     }
+    
+    pub fn add_message(&mut self, message: NetworkMessage<UDP>) {
+        self.output_message.push(message);
+    }
+    
+    pub fn get_current_messages(&self) -> &Vec<NetworkMessage<UDP>> {
+        &self.output_message
+    }
+    
+    pub fn is_empty_messages(&self) -> bool {
+        self.output_message.is_empty()
+    }
+    
+    pub fn clear_messages(&mut self) {
+        self.output_message.clear();
+    }
 }
 
 impl TcpConnection {
@@ -72,6 +88,22 @@ impl TcpConnection {
             input_packet_buffer: Default::default(),
             output_message: vec![],
         }
+    }
+
+    pub fn add_message(&mut self, message: NetworkMessage<TCP>) {
+        self.output_message.push(message);
+    }
+
+    pub fn get_current_messages(&self) -> &Vec<NetworkMessage<TCP>> {
+        &self.output_message
+    }
+    
+    pub fn is_empty_messages(&self) -> bool {
+        self.output_message.is_empty()
+    }
+    
+    pub fn clear_messages(&mut self) {
+        self.output_message.clear();
     }
 }
 

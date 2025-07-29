@@ -38,7 +38,7 @@ pub fn send_chat_to_all_connections(
 ) {
     if let Some(chat) = chat.single().ok() {
         for mut c in connections.iter_mut() {
-            c.output_message.push(NetworkMessage(TCP::Chat {
+            c.add_message(NetworkMessage(TCP::Chat {
                 messages: Vec::from(chat.chat_history.clone()),
             }));
         }
