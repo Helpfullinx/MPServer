@@ -1,6 +1,6 @@
 use crate::components::camera::CameraInfo;
-use crate::components::common::{Id, Vec3};
-use crate::components::player::{Player, PlayerMarker};
+use crate::components::common::Id;
+use crate::components::player::PlayerMarker;
 use crate::network::net_manage::TcpConnection;
 use crate::network::net_message::{NetworkMessage, TCP};
 use crate::util::generate_random_u32;

@@ -1,6 +1,5 @@
 use approx::ulps_eq;
 use bevy::prelude::Component;
-use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 #[derive(Component, Serialize, Deserialize, Clone, Copy, Debug, Hash, PartialEq, Eq)]

@@ -2,24 +2,19 @@ mod components;
 mod network;
 mod util;
 
-use crate::components::camera::CameraInfo;
-use crate::components::chat::{Chat, send_chat_to_all_connections};
+use crate::components::chat::Chat;
 use crate::components::player::PlayerMarker;
 use crate::network::NetworkPlugin;
 use crate::network::net_manage::Communication;
 use avian3d::PhysicsPlugins;
 use avian3d::prelude::{
-    Collider, ColliderBackendPlugin, ColliderHierarchyPlugin, ColliderTransformPlugin, Friction,
-    LinearVelocity, MassPropertyPlugin, NarrowPhasePlugin, Physics, PhysicsSchedulePlugin,
-    PhysicsSet, PhysicsTime, PreparePlugin, RigidBody, Sleeping,
+    Collider,
+    LinearVelocity, Physics, PhysicsTime, RigidBody, Sleeping,
 };
 use bevy::prelude::*;
-use bevy::render::mesh::MeshPlugin;
 use bevy::scene::ScenePlugin;
-use bincode::{Decode, Encode};
 use std::collections::VecDeque;
-use tokio::net::TcpStream;
-use tokio::{io, sync::mpsc};
+use tokio::io;
 
 // #[tokio::main]
 fn main() -> io::Result<()> {

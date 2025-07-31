@@ -1,10 +1,9 @@
-use crate::components::camera::CameraInfo;
-use crate::components::common::{Id, Vec3};
+use crate::components::common::Vec3;
 use crate::network::net_message::BitMask;
 use avian3d::prelude::{LinearVelocity, Rotation};
 use bevy::math::Quat;
 use bevy::prelude::EulerRot::YXZ;
-use bevy::prelude::{Component, Query, Transform, With};
+use bevy::prelude::Component;
 use serde::{Deserialize, Serialize};
 
 #[derive(Component)]

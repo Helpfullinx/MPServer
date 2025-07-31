@@ -1,5 +1,3 @@
-use bitstream_io::{BigEndian, BitWrite2, BitWriter};
-use std::io::Cursor;
 
 const QUANTIZE_SCALE: f32 = 1000.0;
 

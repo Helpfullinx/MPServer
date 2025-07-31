@@ -1,6 +1,5 @@
 use crate::components::chat::ChatMessage;
 use crate::components::common::Id;
-use crate::components::entity::Entity;
 use crate::components::player::Player;
 use bevy::prelude::{Component, Vec2};
 use serde::{Deserialize, Serialize};

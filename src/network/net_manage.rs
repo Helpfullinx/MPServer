@@ -1,9 +1,8 @@
-use crate::network::net_message::{NetworkMessage, NetworkMessageType, TCP, UDP};
+use crate::network::net_message::{NetworkMessage, TCP, UDP};
 use bevy::prelude::{Component, Resource};
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::collections::VecDeque;
 use std::io::Error;
-use std::io::ErrorKind::{ConnectionAborted, WouldBlock};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io;

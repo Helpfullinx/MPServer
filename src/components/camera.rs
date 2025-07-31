@@ -1,5 +1,4 @@
 use bevy::prelude::{Component, Vec2};
-use std::time::Duration;
 
 #[derive(Component, Debug)]
 pub struct CameraInfo {
