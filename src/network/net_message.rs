@@ -1,10 +1,10 @@
+use crate::components::chat::ChatMessage;
 use crate::components::common::Id;
 use crate::components::entity::Entity;
 use crate::components::player::Player;
+use bevy::prelude::{Component, Vec2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use bevy::prelude::Component;
-use crate::components::chat::ChatMessage;
 
 pub trait NetworkMessageType {}
 
@@ -23,6 +23,7 @@ pub enum UDP {
     },
     Input {
         keymask: BitMask,
+        mouse_delta: Vec2,
         player_id: Id,
     },
 }
@@ -31,19 +32,10 @@ impl NetworkMessageType for UDP {}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum TCP {
-    ChatMessage {
-        player_id: Id,
-        message: ChatMessage,
-    },
-    Chat {
-        messages: Vec<(Id, ChatMessage)>
-    },
-    Join {
-        lobby_id: Id,
-    },
-    PlayerId {
-        player_uid: Id,
-    },
+    ChatMessage { player_id: Id, message: ChatMessage },
+    Chat { messages: Vec<(Id, ChatMessage)> },
+    Join { lobby_id: Id },
+    PlayerId { player_uid: Id },
 }
 
 impl NetworkMessageType for TCP {}

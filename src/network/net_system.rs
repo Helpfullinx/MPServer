@@ -1,6 +1,6 @@
-use bevy::prelude::{Commands, Query, ResMut};
 use crate::Communication;
-use crate::network::net_manage::{UdpConnection, Packet, TcpConnection};
+use crate::network::net_manage::{Packet, TcpConnection, UdpConnection};
+use bevy::prelude::{Commands, Query, ResMut};
 use bincode::config;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
@@ -13,8 +13,10 @@ pub fn udp_net_receive(
     while !comm.udp_rx.is_empty() {
         match comm.udp_rx.try_recv() {
             Ok((bytes, socket)) => {
-                let c = connections.iter_mut().find(|x| (x.socket.ip() == socket.ip()) && (x.socket.port() == socket.port()));
-                
+                let c = connections
+                    .iter_mut()
+                    .find(|x| (x.socket.ip() == socket.ip()) && (x.socket.port() == socket.port()));
+
                 match c {
                     Some(mut c) => {
                         c.input_packet_buffer.push_back(Packet {
@@ -42,13 +44,16 @@ pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Udp
             continue;
         }
 
-        let encoded_message = match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
-            Ok(m) => m,
-            Err(e) => {
-                println!("Couldn't encode UDP message: {:?}", e);
-                continue;
-            }
-        };
+        println!("MESSAGE: {:?}", c.get_current_messages());
+
+        let encoded_message =
+            match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
+                Ok(m) => m,
+                Err(e) => {
+                    println!("Couldn't encode UDP message: {:?}", e);
+                    continue;
+                }
+            };
 
         match comm.udp_tx.try_send((encoded_message.clone(), c.socket)) {
             Ok(()) => {
@@ -71,7 +76,7 @@ pub fn tcp_net_receive(
                 let c = connections
                     .iter_mut()
                     .find(|x| same_stream(&*x.stream, &*stream));
-                
+
                 match c {
                     Some(mut c) => {
                         c.input_packet_buffer.push_back(Packet {
@@ -99,15 +104,19 @@ pub fn tcp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Tcp
             continue;
         }
 
-        let encoded_message = match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
-            Ok(m) => m,
-            Err(e) => {
-                println!("Couldn't encode TCP message: {:?}", e);
-                continue;
-            }
-        };
+        let encoded_message =
+            match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
+                Ok(m) => m,
+                Err(e) => {
+                    println!("Couldn't encode TCP message: {:?}", e);
+                    continue;
+                }
+            };
 
-        match comm.tcp_tx.try_send((encoded_message.clone(), c.stream.clone())) {
+        match comm
+            .tcp_tx
+            .try_send((encoded_message.clone(), c.stream.clone()))
+        {
             Ok(()) => {
                 println!("OK");
                 c.clear_messages();

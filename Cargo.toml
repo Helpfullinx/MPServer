@@ -7,6 +7,7 @@ edition = "2024"
 rand = "0.9.1"
 tokio = { version = "1.44.2", features = ["rt", "rt-multi-thread", "macros", "net", "sync"] }
 bevy = "0.16.1"
+bevy-tokio-tasks = "0.16.0"
 avian3d = "0.3.1"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitstream-io = "4.1.0"

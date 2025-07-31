@@ -1,10 +1,11 @@
-use crate::network::net_message::{NetworkMessage, TCP, UDP};
+use crate::network::net_message::{NetworkMessage, NetworkMessageType, TCP, UDP};
+use bevy::prelude::{Component, Resource};
+use std::any::{Any, TypeId};
 use std::collections::VecDeque;
 use std::io::Error;
 use std::io::ErrorKind::{ConnectionAborted, WouldBlock};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use bevy::prelude::{Component, Resource};
 use tokio::io;
 use tokio::io::Interest;
 use tokio::net::{TcpSocket, TcpStream, UdpSocket};
@@ -62,21 +63,30 @@ impl UdpConnection {
             output_message: Vec::new(),
         }
     }
-    
+
     pub fn add_message(&mut self, message: NetworkMessage<UDP>) {
         self.output_message.push(message);
     }
-    
+
     pub fn get_current_messages(&self) -> &Vec<NetworkMessage<UDP>> {
         &self.output_message
     }
-    
+
     pub fn is_empty_messages(&self) -> bool {
         self.output_message.is_empty()
     }
-    
+
     pub fn clear_messages(&mut self) {
         self.output_message.clear();
+    }
+
+    pub fn contains_message_type(&self, message_type: UDP) -> bool {
+        for m in self.output_message.iter() {
+            if m.0.type_id() == message_type.type_id() {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -97,11 +107,11 @@ impl TcpConnection {
     pub fn get_current_messages(&self) -> &Vec<NetworkMessage<TCP>> {
         &self.output_message
     }
-    
+
     pub fn is_empty_messages(&self) -> bool {
         self.output_message.is_empty()
     }
-    
+
     pub fn clear_messages(&mut self) {
         self.output_message.clear();
     }
@@ -158,7 +168,7 @@ pub async fn start_tcp_task(
     //TODO: Figure out the equivalent on windows. I've read that one way is to create a raw
     // socket and set the windows equivalent of this and then cast it as a tokio socket
     // https://stackoverflow.com/questions/40468685/how-to-set-the-socket-option-so-reuseport-in-rust
-    
+
     // On windows, this does not work as it is unix specific
     #[cfg(unix)]
     socket.set_reuseport(true)?;
@@ -167,16 +177,16 @@ pub async fn start_tcp_task(
     socket.bind(bind_addr)?;
 
     let listener = socket.listen(1024)?;
-    
+
     tokio::spawn(async move {
         loop {
             match listener.accept().await {
                 Ok((stream, addr)) => {
                     println!("New connection from {}", addr);
-                    
+
                     let inbound_arc = inbound.clone();
-                    let stream_arc_outer =  Arc::new(stream);
-                    
+                    let stream_arc_outer = Arc::new(stream);
+
                     tokio::spawn(async move {
                         let stream_arc_inner = stream_arc_outer.clone();
                         loop {
@@ -187,10 +197,12 @@ pub async fn start_tcp_task(
                                 let mut buf = vec![0u8; 1024];
 
                                 match stream_arc_inner.try_read(&mut buf) {
-                                    Ok(0) => { break }
+                                    Ok(0) => break,
                                     Ok(len) => {
                                         println!("buf: {:?}", &buf[..len]);
-                                        let _ = inbound_arc.send((buf[..len].to_vec(), stream_arc_inner.clone())).await;
+                                        let _ = inbound_arc
+                                            .send((buf[..len].to_vec(), stream_arc_inner.clone()))
+                                            .await;
                                     }
                                     Err(e) => {
                                         println!("Couldn't read: {:?}", e);
@@ -210,10 +222,12 @@ pub async fn start_tcp_task(
     tokio::spawn(async move {
         while let Some((bytes, stream)) = outbound.recv().await {
             let ready = stream.ready(Interest::WRITABLE).await.unwrap();
-            
+
             if ready.is_writable() {
                 match stream.try_write(&*bytes) {
-                    Ok(_) => { println!("Message Sent") }
+                    Ok(_) => {
+                        println!("Message Sent")
+                    }
                     Err(e) => {
                         println!("Couldn't write: {:?}", e)
                     }
@@ -221,7 +235,6 @@ pub async fn start_tcp_task(
             }
         }
     });
-
 
     Ok(())
 }
