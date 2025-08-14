@@ -43,9 +43,6 @@ pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Udp
         if c.is_empty_messages() {
             continue;
         }
-
-        println!("MESSAGE: {:?}", c.get_current_messages());
-
         let encoded_message =
             match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
                 Ok(m) => m,

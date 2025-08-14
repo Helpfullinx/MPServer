@@ -12,8 +12,6 @@ use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 
-pub mod client;
-pub mod net_encoding;
 pub mod net_manage;
 pub mod net_message;
 pub mod net_system;

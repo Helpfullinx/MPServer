@@ -1,4 +1,4 @@
-use crate::network::net_message::{NetworkMessage, TCP, UDP};
+use crate::network::net_message::{NetworkMessage, CTcpType, CUdpType, SUdpType, STcpType};
 use bevy::prelude::{Component, Resource};
 use std::any::Any;
 use std::collections::VecDeque;
@@ -22,14 +22,16 @@ pub struct Communication {
 pub struct UdpConnection {
     pub socket: SocketAddr,
     pub input_packet_buffer: VecDeque<Packet>,
-    output_message: Vec<NetworkMessage<UDP>>,
+    output_message: Vec<NetworkMessage<SUdpType>>,
+    pub ping: u32
 }
 
 #[derive(Component, Debug)]
 pub struct TcpConnection {
     pub stream: Arc<TcpStream>,
     pub input_packet_buffer: VecDeque<Packet>,
-    output_message: Vec<NetworkMessage<TCP>>,
+    output_message: Vec<NetworkMessage<STcpType>>,
+    pub ping: u32,
     pub lobby_id: u128,
 }
 
@@ -60,14 +62,15 @@ impl UdpConnection {
             socket: ip_addrs,
             input_packet_buffer: VecDeque::new(),
             output_message: Vec::new(),
+            ping: 0
         }
     }
 
-    pub fn add_message(&mut self, message: NetworkMessage<UDP>) {
+    pub fn add_message(&mut self, message: NetworkMessage<SUdpType>) {
         self.output_message.push(message);
     }
 
-    pub fn get_current_messages(&self) -> &Vec<NetworkMessage<UDP>> {
+    pub fn get_current_messages(&self) -> &Vec<NetworkMessage<SUdpType>> {
         &self.output_message
     }
 
@@ -79,7 +82,7 @@ impl UdpConnection {
         self.output_message.clear();
     }
 
-    pub fn contains_message_type(&self, message_type: UDP) -> bool {
+    pub fn contains_message_type(&self, message_type: SUdpType) -> bool {
         for m in self.output_message.iter() {
             if m.0.type_id() == message_type.type_id() {
                 return true;
@@ -96,14 +99,15 @@ impl TcpConnection {
             lobby_id: 0,
             input_packet_buffer: Default::default(),
             output_message: vec![],
+            ping: 0,
         }
     }
 
-    pub fn add_message(&mut self, message: NetworkMessage<TCP>) {
+    pub fn add_message(&mut self, message: NetworkMessage<STcpType>) {
         self.output_message.push(message);
     }
 
-    pub fn get_current_messages(&self) -> &Vec<NetworkMessage<TCP>> {
+    pub fn get_current_messages(&self) -> &Vec<NetworkMessage<STcpType>> {
         &self.output_message
     }
 

@@ -1,6 +1,6 @@
 use crate::components::common::Id;
 use crate::network::net_manage::TcpConnection;
-use crate::network::net_message::{NetworkMessage, TCP};
+use crate::network::net_message::{NetworkMessage, STcpType};
 use bevy::prelude::{Changed, Component, Query};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -35,7 +35,7 @@ pub fn send_chat_to_all_connections(
 ) {
     if let Some(chat) = chat.single().ok() {
         for mut c in connections.iter_mut() {
-            c.add_message(NetworkMessage(TCP::Chat {
+            c.add_message(NetworkMessage(STcpType::Chat {
                 messages: Vec::from(chat.chat_history.clone()),
             }));
         }

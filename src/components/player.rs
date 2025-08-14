@@ -15,20 +15,22 @@ pub struct Player {
     pub linear_velocity: Vec3,
     pub yaw: f32,
     pub pitch: f32,
+    pub animation_state: AnimationState
 }
 
 impl Player {
-    pub fn new(position: Vec3, linear_velocity: Vec3, yaw: f32, pitch: f32) -> Self {
+    pub fn new(position: Vec3, linear_velocity: Vec3, yaw: f32, pitch: f32, animation_state: AnimationState) -> Self {
         Self {
             position,
             linear_velocity,
             yaw,
             pitch,
+            animation_state,
         }
     }
 }
 
-const MOVE_SPEED: f32 = 5.0;
+const MOVE_SPEED: f32 = 1.5;
 
 pub fn apply_player_movement_input(
     encoded_input: BitMask,
@@ -62,3 +64,13 @@ pub fn apply_player_movement_input(
 
     rotation.0 = Quat::from_euler(YXZ, *yaw, 0.0, 0.0);
 }
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
+pub enum AnimationState {
+    #[default]
+    Idle,
+    Walking,
+}
+
+#[derive(Component)]
+pub struct PlayerAnimationState(pub AnimationState);
