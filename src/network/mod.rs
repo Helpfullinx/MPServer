@@ -32,15 +32,15 @@ impl Plugin for NetworkPlugin {
                     tcp_net_receive,
                     handle_udp_message.after(udp_net_receive),
                     handle_tcp_message.after(tcp_net_receive),
-                    send_chat_to_all_connections.after(handle_tcp_message),
-                    build_connection_messages.after(handle_udp_message),
                 ),
             )
             .add_systems(
                 FixedPostUpdate,
                 (
+                    send_chat_to_all_connections,
+                    build_connection_messages,
                     udp_net_send.after(build_connection_messages),
-                    tcp_net_send.after(tcp_net_receive),
+                    tcp_net_send.after(send_chat_to_all_connections),
                 ),
             );
     }

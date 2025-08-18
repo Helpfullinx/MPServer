@@ -40,6 +40,8 @@ pub fn handle_udp_message(
                                 continue;
                             }
                         };
+                    
+                    println!("{:?}", decoded_message.0);
 
                     for m in decoded_message.0.iter() {
                         match m {

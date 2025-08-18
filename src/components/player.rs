@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use crate::components::common::Vec3;
 use crate::network::net_message::BitMask;
 use avian3d::prelude::{LinearVelocity, Rotation};
@@ -8,6 +9,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Component)]
 pub struct PlayerMarker;
+
+#[derive(Component)]
+pub struct PlayerMovementState(pub HashSet<MovementState>);
+
+pub enum MovementState {
+    Idle,
+    Walking,
+    Running,
+}
+
 
 #[derive(Component, Serialize, Deserialize, Default, Debug, Copy, Clone)]
 pub struct Player {
@@ -30,7 +41,8 @@ impl Player {
     }
 }
 
-const MOVE_SPEED: f32 = 1.5;
+const WALK_SPEED: f32 = 1.5;
+const RUN_SPEED: f32 = 5.0;
 
 pub fn apply_player_movement_input(
     encoded_input: BitMask,
@@ -59,8 +71,8 @@ pub fn apply_player_movement_input(
     let normalized_rotated_velocity =
         Quat::from_euler(YXZ, *yaw, 0.0, 0.0).mul_vec3(vector.normalize_or_zero());
 
-    linear_velocity.x = normalized_rotated_velocity.x * MOVE_SPEED;
-    linear_velocity.z = normalized_rotated_velocity.z * MOVE_SPEED;
+    linear_velocity.x = normalized_rotated_velocity.x * WALK_SPEED;
+    linear_velocity.z = normalized_rotated_velocity.z * WALK_SPEED;
 
     rotation.0 = Quat::from_euler(YXZ, *yaw, 0.0, 0.0);
 }
