@@ -14,7 +14,9 @@ use avian3d::prelude::{
 use bevy::prelude::*;
 use bevy::scene::ScenePlugin;
 use std::collections::VecDeque;
+use bevy::log::LogPlugin;
 use tokio::io;
+use crate::components::player::plugin::PlayerPlugin;
 
 // #[tokio::main]
 fn main() -> io::Result<()> {
@@ -24,8 +26,10 @@ fn main() -> io::Result<()> {
             TransformPlugin::default(),
             AssetPlugin::default(),
             ScenePlugin,
-            PhysicsPlugins::default().with_length_unit(10.0),
+            LogPlugin::default(),
+            PhysicsPlugins::new(Update),
             NetworkPlugin,
+            PlayerPlugin,
         ))
         .init_resource::<Assets<Mesh>>()
         .insert_resource(Time::<Fixed>::from_hz(60.0))

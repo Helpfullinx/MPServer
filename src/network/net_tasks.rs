@@ -1,24 +1,35 @@
 use crate::components::camera::{CameraInfo, apply_player_camera_input};
 use crate::components::chat::{Chat, add_chat_message};
-use crate::components::common::{Id, Vec3};
-use crate::components::player::{Player, PlayerMarker, apply_player_movement_input, PlayerAnimationState, AnimationState};
+use crate::components::common::{Id, Vec2, Vec3};
+use crate::components::player::{Player, PlayerMarker, apply_player_movement_input, PlayerAnimationState, AnimationState, PendingInputs, Input};
 use crate::network::net_manage::{TcpConnection, UdpConnection};
-use crate::network::net_message::{NetworkMessage, SequenceNumber, CTcpType, CUdpType, SUdpType};
+use crate::network::net_message::{NetworkMessage, SequenceNumber, CTcpType, CUdpType, SUdpType, BitMask};
 use crate::network::server::server_join::handle_join;
-use avian3d::prelude::{LinearVelocity, Rotation};
-use bevy::prelude::{Commands, Query, Transform, With};
+use avian3d::prelude::{LinearVelocity, Position, Rotation};
+use bevy::prelude::{warn, Commands, Query, With};
 use bincode::config;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::time::SystemTime;
+use bevy::log::info;
+use bevy::math::Quat;
 use crate::network::net_message::SUdpType::Pong;
 
 const MESSAGE_PER_TICK_MAX: usize = 20;
 
+struct MessageBuffer {
+    sequence_number: i32,
+    player_id: Option<Id>,
+    keymask: BitMask,
+    mouse_delta: Vec2,
+    accumulated_movement: (bevy::math::Vec3, Quat),
+    pong_message: Option<SUdpType>,
+}
+
 pub fn handle_udp_message(
     mut connections: Query<&mut UdpConnection>,
     mut players: Query<
-        (&Id, &mut LinearVelocity, &mut Rotation, &mut CameraInfo, &mut PlayerAnimationState),
+        (&Id, &mut LinearVelocity, &mut Rotation, &mut CameraInfo, &mut PlayerAnimationState, &Position, &mut PendingInputs),
         With<PlayerMarker>,
     >,
 ) {
@@ -27,7 +38,14 @@ pub fn handle_udp_message(
             continue;
         }
 
-        let mut seq_num = -1;
+        let mut current_message = MessageBuffer {
+            sequence_number: -1,
+            player_id: None,
+            keymask: 0,
+            mouse_delta: Vec2::new(0.0,0.0),
+            accumulated_movement: (bevy::math::Vec3::ZERO, Quat::default()),
+            pong_message: None,
+        };
 
         for _ in 0..min(MESSAGE_PER_TICK_MAX, c.input_packet_buffer.len()) {
             match c.input_packet_buffer.pop_front() {
@@ -40,48 +58,40 @@ pub fn handle_udp_message(
                                 continue;
                             }
                         };
-                    
-                    println!("{:?}", decoded_message.0);
+
+                    warn!("Received UDP message: {:?}", decoded_message);
 
                     for m in decoded_message.0.iter() {
                         match m {
-                            CUdpType::Sequence { sequence_number } => {
-                                if *sequence_number as i32 > seq_num {
-                                    seq_num = sequence_number.clone() as i32;
-                                }
+                            CUdpType::PlayerId {id} => {
+                                current_message.player_id = Some(id.clone())
                             }
-                            _ => {}
-                        }
-                    }
-
-                    for m in decoded_message.0.iter() {
-                        match m {
+                            CUdpType::Sequence { sequence_number } => {
+                                info!("Received Sequence: {:?}", sequence_number);
+                                current_message.sequence_number = sequence_number.clone() as i32;
+                            }
                             CUdpType::Input {
                                 keymask,
                                 mouse_delta,
-                                player_id,
                             } => {
-                                for mut p in players.iter_mut() {
-                                    if player_id == p.0 {
-                                        if *keymask != 0 {
-                                            p.4.0 = AnimationState::Walking;
-                                            apply_player_movement_input(
-                                                *keymask, &mut p.1, &mut p.2, &p.3.yaw,
-                                            );
-                                        } else {
-                                            p.4.0 = AnimationState::Idle;
-                                        }
-
-                                        apply_player_camera_input(*mouse_delta, &mut p.3);
-                                    }
-                                }
+                                current_message.keymask = *keymask;
+                                current_message.mouse_delta = *mouse_delta;
+                                
+                                info!("Received Keymask: {:?}", keymask);
                             },
                             CUdpType::Ping { initiation_time, last_rtt } => {
                                 c.ping = *last_rtt;
                                 let time_now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
-                                c.add_message(NetworkMessage(Pong{ initiation_time: *initiation_time, server_received_time: time_now as u32 }))
+                                current_message.pong_message = Some(Pong{ initiation_time: *initiation_time, server_received_time: time_now as u32 });
                             }
-                            CUdpType::Sequence { .. } => {}
+                        }
+                    }
+                    
+                    if let Some(id) = current_message.player_id {
+                        for mut p in players.iter_mut() {
+                            if id == *p.0 {
+                                p.6.buffer.push_back(Input{keymask: current_message.keymask, mouse_delta: current_message.mouse_delta})
+                            }
                         }
                     }
                 }
@@ -89,13 +99,19 @@ pub fn handle_udp_message(
             }
         }
 
-        if seq_num != -1 {
+        if current_message.sequence_number != -1 {
+            info!("Sequence Added: {:?}", current_message.sequence_number);
             c.add_message(NetworkMessage(SUdpType::Sequence {
-                sequence_number: seq_num as SequenceNumber,
+                sequence_number: current_message.sequence_number as SequenceNumber,
             }));
         };
 
+        if let Some(pong) = current_message.pong_message {
+            c.add_message(NetworkMessage(pong));
+        }
+        
         if !c.input_packet_buffer.is_empty() {
+            info!("Clearing input buffer");
             c.input_packet_buffer.clear()
         }
     }
@@ -144,19 +160,19 @@ pub fn handle_tcp_message(
 pub fn build_connection_messages(
     mut connections: Query<&mut UdpConnection>,
     players: Query<
-        (&Id, &Transform, &LinearVelocity, &CameraInfo, &PlayerAnimationState),
+        (&Id, &Position, &LinearVelocity, &CameraInfo, &PlayerAnimationState),
         With<PlayerMarker>, /*, Changed<Transform>*/
     >,
 ) {
     let changed_players: HashMap<Id, Player> = players
         .iter()
-        .map(|(i, t, l, c, p)| {
+        .map(|(i, p, l, c, pas)| {
             let player = Player::new(
-                Vec3::new(t.translation.x, t.translation.y, t.translation.z),
-                Vec3::new(l.x, l.y, l.z),
+                p.0.into(),
+                p.0.into(),
                 c.yaw,
                 c.pitch,
-                p.0
+                pas.0
             );
 
             (*i, player)

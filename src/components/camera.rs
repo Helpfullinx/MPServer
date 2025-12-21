@@ -1,4 +1,5 @@
-use bevy::prelude::{Component, Vec2};
+use bevy::prelude::{info, Component};
+use crate::components::common::Vec2;
 
 const LOOK_SENSITIVITY: (f32, f32) = (1.0, 1.0);
 
@@ -15,5 +16,4 @@ pub fn apply_player_camera_input(mouse_delta: Vec2, camera_info: &mut CameraInfo
     camera_info.pitch = camera_info
         .pitch
         .clamp(-90.0f32.to_radians(), 90.0f32.to_radians());
-    // println!("camera info: {:?}", camera_info);
 }

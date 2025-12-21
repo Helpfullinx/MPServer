@@ -1,6 +1,6 @@
 use crate::components::camera::CameraInfo;
 use crate::components::common::Id;
-use crate::components::player::{AnimationState, PlayerAnimationState, PlayerMarker};
+use crate::components::player::{AnimationState, PendingInputs, PlayerAnimationState, PlayerMarker};
 use crate::network::net_manage::TcpConnection;
 use crate::network::net_message::{NetworkMessage, CTcpType, STcpType};
 use crate::util::generate_random_u32;
@@ -30,6 +30,7 @@ pub fn handle_join(lobby_id: Id, connection: &mut TcpConnection, commands: &mut 
             pitch: 0.0,
         },
         PlayerAnimationState(AnimationState::Idle),
+        PendingInputs::default(),
         Id(player_id),
         PlayerMarker,
     ));

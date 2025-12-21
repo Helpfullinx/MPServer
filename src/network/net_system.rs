@@ -1,6 +1,6 @@
 use crate::Communication;
 use crate::network::net_manage::{Packet, TcpConnection, UdpConnection};
-use bevy::prelude::{Commands, Query, ResMut};
+use bevy::prelude::{error, info, Commands, Query, ResMut};
 use bincode::config;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
@@ -43,6 +43,9 @@ pub fn udp_net_send(comm: ResMut<Communication>, mut connections: Query<&mut Udp
         if c.is_empty_messages() {
             continue;
         }
+        
+        info!("Sending Message: {:?}", c.get_current_messages());
+        
         let encoded_message =
             match bincode::serde::encode_to_vec(c.get_current_messages(), config::standard()) {
                 Ok(m) => m,
